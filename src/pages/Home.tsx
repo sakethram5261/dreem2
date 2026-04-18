@@ -256,16 +256,20 @@ useEffect(() => {
             <div className="sidebar-section">
               <p className="sidebar-label">Recent Conversations</p>
               {history.length === 0 && <div className="history-empty">No past visions yet.</div>}
-              {history.map(chat => (
-                <div key={chat.id} className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} onClick={() => { 
-  setActiveId(chat.id); 
-  setMsgs(chat.msgs); 
-  if (window.innerWidth <= 768) setIsSidebarOpen(false); // Add this check
-}}
-                  <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} /> 
-                  <span className="history-text">{chat.title}</span>
-                </div>
-              ))}
+{history.map(chat => (
+  <div 
+    key={chat.id} 
+    className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} 
+    onClick={() => { 
+      setActiveId(chat.id); 
+      setMsgs(chat.msgs); 
+      if (window.innerWidth <= 768) setIsSidebarOpen(false); 
+    }} // <--- Make sure there are TWO here to close the function
+  > {/* <--- This closing bracket for the <div> tag is likely what's missing! */}
+    <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} />
+    <span className="history-text">{chat.title}</span>
+  </div>
+))}
             </div>
 
             <div className="sidebar-footer">
