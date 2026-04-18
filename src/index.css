@@ -212,40 +212,50 @@ body {
 .chat-empty-sub { font-size: 0.875rem; color: hsla(210,40%,98%,0.38); }
 
 .prompt-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  max-width: 600px; /* Limits the width so they don't stretch too far */
-  margin: 2rem auto 0 auto;
-  padding: 0 1rem;
+  display: grid !important; /* Force grid */
+  grid-template-columns: repeat(2, 1fr); /* Exactly 2 columns */
+  gap: 16px;
+  width: 100%;
+  max-width: 800px; /* Give it more breathing room */
+  margin: 2.5rem auto 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 .prompt-chip {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap; /* Prevents text from wrapping inside the bubble */
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 60px; /* Keeps them all the same height */
 }
 
 .prompt-chip:hover {
-  background: rgba(0, 242, 254, 0.1);
-  border-color: #00f2fe;
-  transform: translateY(-2px);
-  color: white;
+  background: rgba(0, 242, 254, 0.05);
+  border-color: rgba(0, 242, 254, 0.5);
+  color: #00f2fe;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-@media (max-width: 768px) {
+/* Mobile: Stack them perfectly into 1 column */
+@media (max-width: 600px) {
+  .prompt-chips {
+    grid-template-columns: 1fr; 
+    max-width: 400px;
+  }
+  
   .prompt-chip {
-    white-space: normal; /* Allows wrapping on small phones so they don't go off-screen */
-    text-align: center;
-    width: 100%; /* Stacks them neatly on very small screens */
-    max-width: 300px;
+    font-size: 0.9rem;
+    padding: 12px 16px;
   }
 }
 
