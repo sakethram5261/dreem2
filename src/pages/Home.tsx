@@ -82,6 +82,7 @@ export function Home() {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
+      let buffer = "";
 
       if (!reader) throw new Error("No response stream.");
 
@@ -89,24 +90,32 @@ export function Home() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter(l => l.trim());
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; 
 
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          const data = trimmed.slice(6);
+          
           if (data === "[DONE]") break;
+          
           try {
-            const parsed = JSON.parse(data) as { text?: string };
+            const parsed = JSON.parse(data);
             if (parsed.text) {
               accumulated += parsed.text;
               setMsgs(prev => {
                 const updated = [...prev];
-                updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
+                updated[assistantIdx] = { 
+                  role: "assistant", 
+                  content: accumulated, 
+                  streaming: true 
+                };
                 return updated;
               });
             }
-          } catch { /* skip */ }
+          } catch { /* wait for buffer */ }
         }
       }
 
