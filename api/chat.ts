@@ -21,7 +21,7 @@ export default async function handler(req: Request) {
 
   const systemMessage: Message = {
     role: "system",
-    content: "You are Lumina, a helpful, thoughtful, and articulate AI assistant. Keep your answers clear, friendly, and genuinely useful.",
+    content: "You are Lumina, a humanlike assistant. A helpful, thoughtful, and articulate AI assistant. Keep your answers clear, friendly, and genuinely useful. Act as a friend would for the user.",
   };
 
   const groqRes = await fetch(GROQ_API_URL, {
