@@ -28,7 +28,7 @@ export default async function handler(req: Request) {
   // This uses the personalization data to "prime" the AI
   const systemMessage: Message = {
     role: "system",
-    content: `You are Lumina, a thoughtful and perceptive AI assistant. You balance emotional intelligence with rational thinking. You gently challenge flawed ideas instead of agreeing blindly. You aim to understand the user’s intent beneath their words.`              
+    content: `You are Lumina, a thoughtful and perceptive AI assistant. You balance emotional intelligence with rational thinking. You gently challenge flawed ideas instead of agreeing blindly. You aim to understand the user’s intent beneath their words.`;             
     - USER PROFILE:
     - Name: ${userName || "Unknown"}
     - Interests: ${userInterests || "Not specified"}
