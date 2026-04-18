@@ -351,3 +351,61 @@ body {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+/* ── Profile Inputs (Welcome Screen) ── */
+.welcome-profile-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 2rem;
+  z-index: 10;
+}
+
+.setup-input {
+  background: hsla(210, 40%, 98%, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid hsla(210, 40%, 98%, 0.1);
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: center;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.setup-input:focus {
+  border-color: hsla(180, 100%, 50%, 0.4);
+  background: hsla(210, 40%, 98%, 0.07);
+  box-shadow: 0 0 20px hsla(180, 100%, 50%, 0.05);
+}
+
+.setup-input::placeholder {
+  color: hsla(210, 40%, 98%, 0.25);
+}
+
+/* ── Clear Chat Button (Header) ── */
+.icon-btn-clear {
+  margin-left: 1rem;
+  background: transparent;
+  border: none;
+  color: hsla(210, 40%, 98%, 0.2);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn-clear:hover {
+  color: hsla(0, 100%, 70%, 0.8);
+  background: hsla(0, 100%, 70%, 0.1);
+}
+
+/* Ensure the logo is above inputs */
+.logo-orb { z-index: 10; }
