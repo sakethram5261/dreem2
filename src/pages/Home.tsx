@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles, Settings } from "lucide-react";
+// ─── CLERK IMPORTS ───
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
 
@@ -33,12 +35,10 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
-  // ─── NEW: Welcome Screen State ───
   const [screen, setScreen] = useState<"welcome" | "chat">(() => {
     if (typeof window !== "undefined") {
       const savedHistory = localStorage.getItem("lumina_history");
       const savedMsgs = localStorage.getItem("lumina_v1_history");
-      // Skip welcome screen ONLY if they have past conversations
       if ((savedHistory && JSON.parse(savedHistory).length > 0) || (savedMsgs && JSON.parse(savedMsgs).length > 0)) {
         return "chat";
       }
@@ -46,7 +46,6 @@ export function Home() {
     return "welcome";
   });
 
-  // ─── MEMORY & HISTORY STATES ───
   const [history, setHistory] = useState<ChatSession[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lumina_history");
@@ -78,7 +77,6 @@ export function Home() {
     return (typeof window !== "undefined") ? localStorage.getItem("lumina_v1_interests") || "" : "";
   });
 
-  // ─── MOBILE FIX: Close sidebar by default on phones ───
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
       return window.innerWidth > 768; 
@@ -197,7 +195,7 @@ export function Home() {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6);
           if (data === "[DONE]") break;
-try {
+          try {
             const parsed = JSON.parse(data);
             if (parsed.text) {
               accumulated += parsed.text;
@@ -206,8 +204,6 @@ try {
                 updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
                 return updated;
               });
-              
-              // ─── ADD THIS LINE: Artificial Typing Delay ───
               await new Promise(resolve => setTimeout(resolve, 20)); 
             }
           } catch { }
@@ -228,7 +224,6 @@ try {
 
   return (
     <div className="app-container">
-      {/* ── BACKGROUND (Always Visible) ── */}
       <div className="bg-scene" aria-hidden>
         <div className="bg-aurora" />
         <div className="bg-orb bg-orb-1" />
@@ -244,7 +239,6 @@ try {
         </div>
       </div>
 
-      {/* ── CONDITION 1: WELCOME SCREEN ── */}
       {screen === "welcome" ? (
         <div className="welcome-screen screen-enter" style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
           <div className="logo-orb"><div className="logo-orb-inner" /></div>
@@ -259,7 +253,6 @@ try {
           </button>
         </div>
       ) : (
-        /* ── CONDITION 2: MAIN DASHBOARD ── */
         <>
           <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
             <button className="new-chat-btn-dream" onClick={startNewChat}>
@@ -284,14 +277,29 @@ try {
               ))}
             </div>
 
-            <div className="sidebar-footer clickable-footer" onClick={() => setIsProfileOpen(true)}>
+            {/* ─── CLERK AUTH FOOTER ─── */}
+            <div className="sidebar-footer clickable-footer">
               <div className="user-profile-mini">
-                <div className="avatar-dream">{userName?.charAt(0) || "U"}</div>
-                <div className="user-info">
-                  <p className="u-name">{userName || "Dreamer"}</p>
-                  <p className="u-status">Lumina Oracle</p>
-                </div>
-                <Settings size={18} className="settings-icon" />
+                
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="new-chat-btn-dream" style={{ marginBottom: 0, width: '100%', justifyContent: 'center' }}>
+                      Sign in with Google
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+
+                <SignedIn>
+                  <div className="avatar-dream" style={{ background: 'transparent' }}>
+                    <UserButton appearance={{ elements: { userButtonAvatarBox: { width: 36, height: 36 } } }} />
+                  </div>
+                  <div className="user-info" onClick={() => setIsProfileOpen(true)}>
+                    <p className="u-name">{userName || "Configure AI"}</p>
+                    <p className="u-status">Settings</p>
+                  </div>
+                  <Settings size={18} className="settings-icon" onClick={() => setIsProfileOpen(true)} />
+                </SignedIn>
+
               </div>
             </div>
           </aside>
@@ -363,7 +371,7 @@ try {
         </>
       )}
 
-      {/* ── SETTINGS MODAL OVERLAY ── */}
+      {/* ── SETTINGS MODAL ── */}
       {isProfileOpen && (
         <div className="profile-overlay" onClick={() => setIsProfileOpen(false)}>
           <div className="profile-modal" onClick={e => e.stopPropagation()}>
