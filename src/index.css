@@ -410,90 +410,94 @@ body {
 /* Ensure the logo is above inputs */
 .logo-orb { z-index: 10; }
 /* ── 1. Fix the main layout ── */
+/* --- FORCE LAYOUT --- */
 .app-container {
   display: flex !important;
-  width: 100vw;
-  height: 100vh;
-  position: relative;
+  flex-direction: row !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: #050508;
   overflow: hidden;
-  background: #050508; /* Dark base */
 }
 
-/* ── 2. Force the Sidebar to the left ── */
+/* --- SIDEBAR --- */
 .sidebar-dream {
-  width: 280px;
-  height: 100%;
-  background: rgba(15, 15, 25, 0.6) !important;
-  backdrop-filter: blur(30px) !important;
-  -webkit-backdrop-filter: blur(30px);
+  width: 280px !important;
+  height: 100% !important;
+  background: rgba(15, 15, 25, 0.45) !important;
+  backdrop-filter: blur(40px) !important;
+  -webkit-backdrop-filter: blur(40px);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
+  display: flex !important;
   flex-direction: column;
-  padding: 20px;
-  z-index: 100;
-  transition: transform 0.3s ease;
+  padding: 24px 16px;
+  z-index: 50;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .sidebar-dream.closed {
-  transform: translateX(-100%);
-  width: 0;
-  padding: 0;
-  border: none;
+  width: 0 !important;
+  padding: 0 !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* ── 3. Force the Main Content to the right ── */
+/* --- MAIN AREA --- */
 .main-content-dream {
+  flex: 1 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-viewport {
   flex: 1;
-  height: 100%;
+  overflow-y: auto;
+  padding: 40px 15%;
   display: flex;
   flex-direction: column;
-  position: relative;
-  z-index: 10;
 }
 
-/* ── 4. Style the Gemini-style rows ── */
+/* --- CHAT ROWS --- */
 .gemini-row-dream {
   display: flex;
-  gap: 20px;
-  padding: 24px 10%;
+  gap: 24px;
+  padding: 24px 0;
+  max-width: 900px;
   width: 100%;
+  margin: 0 auto;
 }
 
 .gemini-content {
   flex: 1;
 }
 
-.avatar-circle-dream {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-weight: bold;
+.text-body-dream {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.7;
+  font-size: 16px;
 }
 
-.avatar-circle-dream.assistant {
-  background: rgba(0, 255, 255, 0.1);
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  color: #00ffff;
-}
-
-/* ── 5. Input Bar Positioning ── */
+/* --- INPUT PILL --- */
 .dream-input-container {
-  padding: 20px 10% 40px 10%;
-  background: linear-gradient(transparent, #050508 50%);
+  padding: 20px 15% 40px 15%;
+  background: linear-gradient(transparent, #050508 40%);
 }
 
 .dream-input-wrapper {
   background: rgba(255, 255, 255, 0.05) !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 8px 8px 8px 20px;
+  border-radius: 28px;
+  padding: 8px 12px 8px 24px;
   display: flex;
   align-items: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
 
 .dream-input {
@@ -502,6 +506,27 @@ body {
   border: none;
   outline: none;
   color: white;
-  height: 44px;
+  padding: 12px 0;
   font-size: 16px;
+}
+
+/* --- BUTTONS & ICONS --- */
+.new-chat-btn-dream {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 20px;
+  border-radius: 16px;
+  color: white;
+  cursor: pointer;
+  margin-bottom: 24px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.new-chat-btn-dream:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(0, 255, 255, 0.3);
 }
