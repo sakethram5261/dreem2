@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { db } from "./lib/firebase"; // adjust path if needed
+import { doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
+import { useUser } from "@clerk/clerk-react";
 import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles, Settings } from "lucide-react";
 // ─── CLERK IMPORTS ───
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
