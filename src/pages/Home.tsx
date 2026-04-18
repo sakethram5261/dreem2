@@ -192,13 +192,25 @@ export function Home() {
         </div>
       </div>
 
-      {screen === "welcome" ? (
-        <div className="welcome-screen">
+{screen === "welcome" ? (
+        <div className="welcome-screen" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: '100vh',
+          width: '100vw',
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 10
+        }}>
           <div className="logo-orb">
             <div className="logo-orb-inner"></div>
           </div>
           <h1 className="welcome-title">Lumina</h1>
-          <p className="welcome-sub">Your personal cosmic oracle. Start a vision to begin.</p>
+          <p className="welcome-sub" style={{ margin: '0 auto 2rem auto' }}>
+            Your personal cosmic oracle. Start a vision to begin.
+          </p>
           <button className="start-btn" onClick={() => setScreen("chat")}>
             Start Chatting <Sparkles size={18} />
           </button>
