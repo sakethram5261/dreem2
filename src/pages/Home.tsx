@@ -156,7 +156,7 @@ useEffect(() => {
                   updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
                   return updated;
                 });
-                await new Promise(r => setTimeout(r, 15));
+                await new Promise(r => setTimeout(r, 35));
               }
             } catch { }
           }
