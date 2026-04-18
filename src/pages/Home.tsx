@@ -61,14 +61,20 @@ export function Home() {
     return Date.now().toString();
   });
 
-  const [msgs, setMsgs] = useState<Msg[]>(() => {
+const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lumina_v1_history");
-      return saved ? JSON.parse(saved) : [];
+      const savedHistory = localStorage.getItem("lumina_history");
+      const savedActiveId = localStorage.getItem("lumina_active_id");
+      
+      // If they have history, find the chat they were looking at last!
+      if (savedHistory && savedActiveId) {
+        const parsedHistory = JSON.parse(savedHistory);
+        const lastChat = parsedHistory.find((chat: ChatSession) => chat.id === savedActiveId);
+        if (lastChat) return lastChat.msgs;
+      }
     }
     return [];
   });
-
   const [userName, setUserName] = useState(() => {
     return (typeof window !== "undefined") ? localStorage.getItem("lumina_v1_user") || "" : "";
   });
