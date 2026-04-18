@@ -917,3 +917,132 @@ div[class*="cl-internal"] > a[href*="clerk.com"] {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+/* ─── NEW RECOVERY STYLES ─── */
+
+.app-container {
+  background: #050508;
+  color: white;
+  min-height: 100vh;
+  display: flex;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Welcome Screen Fix */
+.welcome-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: radial-gradient(circle at center, #101020 0%, #050508 100%);
+}
+
+.welcome-title {
+  font-size: 5rem;
+  font-weight: 800;
+  background: linear-gradient(to right, #fff, #00f2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.3));
+}
+
+.start-btn {
+  background: #00f2fe;
+  color: #000;
+  padding: 1rem 2.5rem;
+  border-radius: 50px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+}
+
+.start-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 242, 254, 0.6);
+}
+
+/* Sidebar Recovery */
+.sidebar-dream {
+  width: 280px;
+  background: rgba(15, 15, 25, 0.8);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.sidebar-dream.closed {
+  transform: translateX(-100%);
+  width: 0;
+  padding: 0;
+}
+
+/* Chat Viewport Recovery */
+.main-content-dream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.dream-header {
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* Message Bubble Recovery */
+.gemini-row-dream {
+  margin-bottom: 2rem;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gemini-row-dream.user {
+  background: rgba(0, 242, 254, 0.05);
+  border-color: rgba(0, 242, 254, 0.1);
+}
+
+/* Input Area Recovery */
+.dream-input-container {
+  padding: 2rem;
+  background: linear-gradient(to top, #050508 70%, transparent);
+}
+
+.dream-input-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  display: flex;
+  padding: 0.5rem 1rem;
+}
+
+.dream-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 1rem;
+  outline: none;
+}
