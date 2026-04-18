@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Trash2 } from "lucide-react";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
 
@@ -27,14 +27,48 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
-  const [screen, setScreen] = useState<"welcome" | "chat">("welcome");
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  // --- 1. STATE & STORAGE ---
+  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lumina_chat_history");
+      return (saved && JSON.parse(saved).length > 0) ? "chat" : "welcome";
+    }
+    return "welcome";
+  });
+
+  const [msgs, setMsgs] = useState<Msg[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lumina_chat_history");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // User Profile States
+  const [userName, setUserName] = useState(() => {
+    return (typeof window !== "undefined") ? localStorage.getItem("lumina_user_name") || "" : "";
+  });
+  const [userInterests, setUserInterests] = useState(() => {
+    return (typeof window !== "undefined") ? localStorage.getItem("lumina_user_interests") || "" : "";
+  });
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // --- 2. EFFECTS (PERSISTENCE) ---
+  useEffect(() => {
+    localStorage.setItem("lumina_chat_history", JSON.stringify(msgs));
+  }, [msgs]);
+
+  useEffect(() => {
+    localStorage.setItem("lumina_user_name", userName);
+    localStorage.setItem("lumina_user_interests", userInterests);
+  }, [userName, userInterests]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,6 +82,15 @@ export function Home() {
   }, [screen]);
 
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  // --- 3. CORE LOGIC ---
+  const clearChat = () => {
+    if (window.confirm("Delete all messages? This cannot be undone.")) {
+      setMsgs([]);
+      localStorage.removeItem("lumina_chat_history");
+      setScreen("welcome");
+    }
+  };
 
   const send = useCallback(async (text: string) => {
     const t = text.trim();
@@ -70,7 +113,11 @@ export function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMsgs }),
+        body: JSON.stringify({ 
+          messages: nextMsgs.slice(-10),
+          userName: userName,
+          userInterests: userInterests
+        }),
         signal: ctrl.signal,
       });
 
@@ -98,7 +145,6 @@ export function Home() {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data: ")) continue;
           const data = trimmed.slice(6);
-          
           if (data === "[DONE]") break;
           
           try {
@@ -115,7 +161,7 @@ export function Home() {
                 return updated;
               });
             }
-          } catch { /* wait for buffer */ }
+          } catch { /* Wait for more data in buffer */ }
         }
       }
 
@@ -133,7 +179,7 @@ export function Home() {
     } finally {
       setLoading(false);
     }
-  }, [msgs, loading]);
+  }, [msgs, loading, userName, userInterests]);
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
@@ -165,14 +211,27 @@ export function Home() {
           </div>
 
           <h1 className="welcome-title">Meet Lumina</h1>
-          <p className="welcome-sub">
-            An AI that actually gets you. Ask it anything — it writes, thinks,
-            explains, and creates alongside you.
-          </p>
+          
+          <div className="welcome-profile-setup">
+            <input 
+              type="text" 
+              placeholder="What should I call you?" 
+              className="setup-input"
+              value={userName}
+              onChange={e => setUserName(e.target.value)}
+            />
+            <input 
+              type="text" 
+              placeholder="What are you into? (e.g. Coding, Space)" 
+              className="setup-input"
+              value={userInterests}
+              onChange={e => setUserInterests(e.target.value)}
+            />
+          </div>
 
           <button className="start-btn" onClick={() => setScreen("chat")}>
             <span>Start chatting</span>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
@@ -182,18 +241,20 @@ export function Home() {
       {screen === "chat" && (
         <div className="chat-screen screen-enter">
           <div className="chat-header">
-            <div className="chat-header-orb">
-              <div className="chat-header-orb-inner" />
+            <div className="header-left">
+               <div className="chat-header-orb"><div className="chat-header-orb-inner" /></div>
+               <span className="chat-header-name">Lumina AI</span>
+               <span className="model-tag">{MODEL_TAG}</span>
             </div>
-            <span className="chat-header-name">Lumina AI</span>
-            <span className="model-tag">{MODEL_TAG}</span>
+            <button className="icon-btn" onClick={clearChat} title="Clear Chat">
+              <Trash2 size={18} />
+            </button>
           </div>
 
           <div className="chat-messages">
             {msgs.length === 0 && !loading && (
               <div className="chat-empty">
-                <p className="chat-empty-title">What's on your mind?</p>
-                <p className="chat-empty-sub">Pick a starter or write your own</p>
+                <p className="chat-empty-title">Welcome back{userName ? `, ${userName}` : ""}</p>
                 <div className="prompt-chips">
                   {PROMPTS.map((p, i) => (
                     <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
@@ -206,13 +267,10 @@ export function Home() {
               <div key={i} className={`msg-row ${m.role}`}>
                 <div className={`msg-bubble ${m.role}${m.streaming ? " streaming" : ""}`}>
                   {m.role === "assistant" && (
-                    <div className="msg-label">
-                      <span className="msg-label-dot" />
-                      Lumina
-                    </div>
+                    <div className="msg-label"><span className="msg-label-dot" />Lumina</div>
                   )}
                   {m.content}
-                  {m.streaming && m.content && <span className="stream-cursor" aria-hidden />}
+                  {m.streaming && m.content && <span className="stream-cursor" />}
                 </div>
               </div>
             ))}
@@ -235,24 +293,14 @@ export function Home() {
                 ref={inputRef}
                 type="text"
                 className="chat-input"
-                placeholder="Say something..."
+                placeholder="Message Lumina..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={onKey}
                 disabled={loading}
-                maxLength={4000}
-                autoComplete="off"
               />
-              <button
-                className="send-btn"
-                onClick={() => send(input)}
-                disabled={!input.trim() || loading}
-                aria-label="Send message"
-              >
-                {loading
-                  ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-                  : <Send size={16} />
-                }
+              <button className="send-btn" onClick={() => send(input)} disabled={!input.trim() || loading}>
+                {loading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
               </button>
             </div>
           </div>
