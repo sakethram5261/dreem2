@@ -55,25 +55,41 @@ export function Home() {
   const abortRef = useRef<AbortController | null>(null);
 
   // ─── 1. SYNC FIREBASE CREDITS ───
-  useEffect(() => {
+useEffect(() => {
     if (!user) return;
+
     const syncUser = async () => {
-      const userRef = doc(db, "users", user.id);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        setCredits(userSnap.data().credits);
-      } else {
-        await setDoc(userRef, {
-          email: user.primaryEmailAddress?.emailAddress,
-          credits: 10,
-          createdAt: new Date(),
-        });
-        setCredits(10);
+      try {
+        const userRef = doc(db, "users", user.id);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          // 1. Get existing credits from Firebase
+          const data = userSnap.data();
+          setCredits(data.credits);
+        } else {
+          // 2. New User: Create them in Firebase with 10 credits
+          await setDoc(userRef, {
+            email: user.primaryEmailAddress?.emailAddress,
+            credits: 10,
+            createdAt: new Date(),
+          });
+          setCredits(10);
+        }
+        
+        // 3. AUTO-SKIP: Jump to chat screen once synced
+        setScreen("chat");
+        
+        // 4. CLEAN START: Clear messages so you see the "Hello" screen
+        setMsgs([]); 
+
+      } catch (error) {
+        console.error("Firebase Sync Error:", error);
       }
     };
+
     syncUser();
   }, [user]);
-
   // ─── 2. LOCAL HISTORY LOGIC ───
   useEffect(() => {
     const saved = localStorage.getItem("lumina_history");
