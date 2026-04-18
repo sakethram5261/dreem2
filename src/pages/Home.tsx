@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Trash2, MessageSquare, Plus, Menu, X, Sparkles } from "lucide-react";
+import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles } from "lucide-react";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
 
@@ -16,6 +16,12 @@ interface Msg {
   streaming?: boolean;
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  msgs: Msg[];
+}
+
 const PARTICLES = Array.from({ length: 18 }, (_, i) => {
   const seed = i * 137.508;
   return {
@@ -27,6 +33,22 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
+  // ─── MEMORY & HISTORY STATES ───
+  const [history, setHistory] = useState<ChatSession[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lumina_history");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const [activeId, setActiveId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lumina_active_id") || Date.now().toString();
+    }
+    return Date.now().toString();
+  });
+
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lumina_v1_history");
@@ -52,20 +74,58 @@ export function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // ─── SYNC TO LOCAL STORAGE ───
   useEffect(() => {
     localStorage.setItem("lumina_v1_history", JSON.stringify(msgs));
+    localStorage.setItem("lumina_history", JSON.stringify(history));
+    localStorage.setItem("lumina_active_id", activeId);
     localStorage.setItem("lumina_v1_user", userName);
     localStorage.setItem("lumina_v1_interests", userInterests);
-  }, [msgs, userName, userInterests]);
+  }, [msgs, history, activeId, userName, userInterests]);
+
+  // ─── AUTO-SAVE CHAT TO HISTORY ───
+  useEffect(() => {
+    if (msgs.length > 0) {
+      setHistory(prev => {
+        const existingIdx = prev.findIndex(h => h.id === activeId);
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = { ...updated[existingIdx], msgs };
+          return updated;
+        } else {
+          // Create a new entry in the sidebar, using the first message as the title
+          const title = msgs[0].content.slice(0, 28) + (msgs[0].content.length > 28 ? "..." : "");
+          return [{ id: activeId, title, msgs }, ...prev];
+        }
+      });
+    }
+  }, [msgs, activeId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
 
-  const clearChat = () => {
-    if (window.confirm("Start a new chat?")) {
+  // ─── CHAT MANAGEMENT ───
+  const startNewChat = () => {
+    setActiveId(Date.now().toString());
+    setMsgs([]);
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  const loadChat = (id: string) => {
+    const chat = history.find(h => h.id === id);
+    if (chat) {
+      setActiveId(id);
+      setMsgs(chat.msgs);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+    }
+  };
+
+  const deleteCurrentChat = () => {
+    if (window.confirm("Delete this specific conversation?")) {
+      setHistory(prev => prev.filter(h => h.id !== activeId));
       setMsgs([]);
-      localStorage.removeItem("lumina_v1_history");
+      setActiveId(Date.now().toString());
     }
   };
 
@@ -83,10 +143,10 @@ export function Home() {
     const assistantIdx = nextMsgs.length;
     setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
 
-const ctrl = new AbortController();
+    const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    // ADD THIS LINE: Strip out the 'streaming' property so Groq doesn't crash
+    // Remove the 'streaming' tag before sending to Groq to prevent crashes
     const apiMessages = nextMsgs.slice(-10).map(m => ({ 
       role: m.role, 
       content: m.content 
@@ -97,13 +157,13 @@ const ctrl = new AbortController();
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          messages: apiMessages, // <--- USE THE CLEAN MESSAGES HERE
+          messages: apiMessages,
           userName,
           userInterests
         }),
         signal: ctrl.signal,
       });
-      
+
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
@@ -165,17 +225,26 @@ const ctrl = new AbortController();
       </div>
 
       <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
-        <button className="new-chat-btn-dream" onClick={clearChat}>
+        <button className="new-chat-btn-dream" onClick={startNewChat}>
           <Plus size={18} />
           <span>New Chat</span>
         </button>
         
         <div className="sidebar-section">
           <p className="sidebar-label">Recent Conversations</p>
-          <div className="history-item-dream active">
-            <Sparkles size={14} className="cyan-glow-text" />
-            <span>Current Vision</span>
-          </div>
+          {history.length === 0 && (
+            <div className="history-empty">No past visions yet.</div>
+          )}
+          {history.map(chat => (
+            <div 
+              key={chat.id} 
+              className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
+              onClick={() => loadChat(chat.id)}
+            >
+              <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} />
+              <span className="history-text">{chat.title}</span>
+            </div>
+          ))}
         </div>
 
         <div className="sidebar-footer">
@@ -199,6 +268,9 @@ const ctrl = new AbortController();
             <span className="lumina-logo-text">Lumina</span>
           </div>
           <div className="model-badge-dream">{MODEL_TAG}</div>
+          <button className="icon-btn-clear" onClick={deleteCurrentChat} title="Delete this chat">
+            <Trash2 size={16} />
+          </button>
         </header>
 
         <div className="chat-viewport">
