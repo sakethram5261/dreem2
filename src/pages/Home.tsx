@@ -287,7 +287,10 @@ useEffect(() => {
               </SignedIn>
             </div>
           </aside>
-
+{/* ─── ADD THIS OVERLAY ─── */}
+  {isSidebarOpen && typeof window !== "undefined" && window.innerWidth <= 768 && (
+    <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
+  )}
           {/* ─── MAIN CHAT ─── */}
           <main className="main-content-dream">
             <header className="chat-header">
