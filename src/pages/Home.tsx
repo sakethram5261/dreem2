@@ -27,29 +27,29 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
-  // --- 1. STATE & STORAGE ---
-  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lumina_chat_history");
-      return (saved && JSON.parse(saved).length > 0) ? "chat" : "welcome";
-    }
-    return "welcome";
-  });
-
+  // --- Persisted State ---
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lumina_chat_history");
+      const saved = localStorage.getItem("lumina_v1_history");
       return saved ? JSON.parse(saved) : [];
     }
     return [];
   });
 
-  // User Profile States
   const [userName, setUserName] = useState(() => {
-    return (typeof window !== "undefined") ? localStorage.getItem("lumina_user_name") || "" : "";
+    return (typeof window !== "undefined") ? localStorage.getItem("lumina_v1_user") || "" : "";
   });
+
   const [userInterests, setUserInterests] = useState(() => {
-    return (typeof window !== "undefined") ? localStorage.getItem("lumina_user_interests") || "" : "";
+    return (typeof window !== "undefined") ? localStorage.getItem("lumina_v1_interests") || "" : "";
+  });
+
+  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lumina_v1_history");
+      return (saved && JSON.parse(saved).length > 0) ? "chat" : "welcome";
+    }
+    return "welcome";
   });
 
   const [input, setInput] = useState("");
@@ -60,15 +60,12 @@ export function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // --- 2. EFFECTS (PERSISTENCE) ---
+  // --- Sync to LocalStorage ---
   useEffect(() => {
-    localStorage.setItem("lumina_chat_history", JSON.stringify(msgs));
-  }, [msgs]);
-
-  useEffect(() => {
-    localStorage.setItem("lumina_user_name", userName);
-    localStorage.setItem("lumina_user_interests", userInterests);
-  }, [userName, userInterests]);
+    localStorage.setItem("lumina_v1_history", JSON.stringify(msgs));
+    localStorage.setItem("lumina_v1_user", userName);
+    localStorage.setItem("lumina_v1_interests", userInterests);
+  }, [msgs, userName, userInterests]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,11 +80,10 @@ export function Home() {
 
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
-  // --- 3. CORE LOGIC ---
   const clearChat = () => {
-    if (window.confirm("Delete all messages? This cannot be undone.")) {
+    if (window.confirm("Delete memory and start over?")) {
       setMsgs([]);
-      localStorage.removeItem("lumina_chat_history");
+      localStorage.removeItem("lumina_v1_history");
       setScreen("welcome");
     }
   };
@@ -115,23 +111,20 @@ export function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           messages: nextMsgs.slice(-10),
-          userName: userName,
-          userInterests: userInterests
+          userName,
+          userInterests
         }),
         signal: ctrl.signal,
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? `Error ${res.status}`);
-      }
+      if (!res.ok) throw new Error("Connection failed");
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
       let buffer = "";
 
-      if (!reader) throw new Error("No response stream.");
+      if (!reader) throw new Error("No stream.");
 
       while (true) {
         const { done, value } = await reader.read();
@@ -142,48 +135,35 @@ export function Home() {
         buffer = lines.pop() || ""; 
 
         for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const data = trimmed.slice(6);
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
           if (data === "[DONE]") break;
-          
           try {
             const parsed = JSON.parse(data);
             if (parsed.text) {
               accumulated += parsed.text;
               setMsgs(prev => {
                 const updated = [...prev];
-                updated[assistantIdx] = { 
-                  role: "assistant", 
-                  content: accumulated, 
-                  streaming: true 
-                };
+                updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
                 return updated;
               });
             }
-          } catch { /* Wait for more data in buffer */ }
+          } catch { /* skip incomplete chunks */ }
         }
       }
-
       setMsgs(prev => {
         const updated = [...prev];
-        if (updated[assistantIdx]) {
-          updated[assistantIdx] = { role: "assistant", content: accumulated };
-        }
+        if (updated[assistantIdx]) updated[assistantIdx].streaming = false;
         return updated;
       });
-    } catch (e: unknown) {
-      if ((e as Error).name === "AbortError") return;
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } catch (e: any) {
+      if (e.name === "AbortError") return;
+      setError(e.message);
       setMsgs(prev => prev.filter((_, i) => i !== assistantIdx));
     } finally {
       setLoading(false);
     }
   }, [msgs, loading, userName, userInterests]);
-
-  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
-  };
 
   return (
     <>
@@ -211,7 +191,11 @@ export function Home() {
           </div>
 
           <h1 className="welcome-title">Meet Lumina</h1>
-          
+          <p className="welcome-sub">
+            An AI that actually gets you. Ask it anything — it writes, thinks,
+            explains, and creates alongside you.
+          </p>
+
           <div className="welcome-profile-setup">
             <input 
               type="text" 
@@ -241,20 +225,21 @@ export function Home() {
       {screen === "chat" && (
         <div className="chat-screen screen-enter">
           <div className="chat-header">
-            <div className="header-left">
-               <div className="chat-header-orb"><div className="chat-header-orb-inner" /></div>
-               <span className="chat-header-name">Lumina AI</span>
-               <span className="model-tag">{MODEL_TAG}</span>
+            <div className="chat-header-orb">
+              <div className="chat-header-orb-inner" />
             </div>
-            <button className="icon-btn" onClick={clearChat} title="Clear Chat">
-              <Trash2 size={18} />
+            <span className="chat-header-name">Lumina AI</span>
+            <span className="model-tag">{MODEL_TAG}</span>
+            <button className="icon-btn-clear" onClick={clearChat} title="Clear Session">
+              <Trash2 size={16} />
             </button>
           </div>
 
           <div className="chat-messages">
             {msgs.length === 0 && !loading && (
               <div className="chat-empty">
-                <p className="chat-empty-title">Welcome back{userName ? `, ${userName}` : ""}</p>
+                <p className="chat-empty-title">Hello{userName ? `, ${userName}` : ""}.</p>
+                <p className="chat-empty-sub">What's on your mind today?</p>
                 <div className="prompt-chips">
                   {PROMPTS.map((p, i) => (
                     <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
@@ -267,7 +252,10 @@ export function Home() {
               <div key={i} className={`msg-row ${m.role}`}>
                 <div className={`msg-bubble ${m.role}${m.streaming ? " streaming" : ""}`}>
                   {m.role === "assistant" && (
-                    <div className="msg-label"><span className="msg-label-dot" />Lumina</div>
+                    <div className="msg-label">
+                      <span className="msg-label-dot" />
+                      Lumina
+                    </div>
                   )}
                   {m.content}
                   {m.streaming && m.content && <span className="stream-cursor" />}
@@ -291,16 +279,18 @@ export function Home() {
             <div className="input-wrap">
               <input
                 ref={inputRef}
-                type="text"
                 className="chat-input"
                 placeholder="Message Lumina..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={onKey}
-                disabled={loading}
+                onKeyDown={(e) => e.key === "Enter" && send(input)}
               />
-              <button className="send-btn" onClick={() => send(input)} disabled={!input.trim() || loading}>
-                {loading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+              <button 
+                className="send-btn" 
+                onClick={() => send(input)} 
+                disabled={!input.trim() || loading}
+              >
+                {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
               </button>
             </div>
           </div>
