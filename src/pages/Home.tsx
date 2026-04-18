@@ -318,7 +318,33 @@ const [msgs, setMsgs] = useState<Msg[]>(() => {
                 </div>
               ))}
             </div>
+{/* ─── ADD THIS BELOW THE RECENT CONVERSATIONS DIV ─── */}
+            <div className="sidebar-footer clickable-footer">
+              <div className="user-profile-mini">
+                
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="new-chat-btn-dream" style={{ marginBottom: 0, width: '100%', justifyContent: 'center' }}>
+                      Sign in with Google
+                    </button>
+                  </SignInButton>
+                </SignedOut>
 
+                <SignedIn>
+                  <div className="avatar-dream" style={{ background: 'transparent' }}>
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
+                  <div className="user-info">
+                    <p className="u-name">{user?.firstName || "Dreamer"}</p>
+                    <p className="u-status" style={{ color: credits !== null && credits < 3 ? '#ff4b2b' : '#00f2fe' }}>
+                      {credits ?? 0} Visions Left
+                    </p>
+                  </div>
+                  <Settings size={18} className="settings-icon" onClick={() => setIsProfileOpen(true)} />
+                </SignedIn>
+
+              </div>
+            </div>
             {/* ─── CLERK AUTH FOOTER ─── */}
             <div className="sidebar-footer clickable-footer">
               <div className="user-profile-mini">
