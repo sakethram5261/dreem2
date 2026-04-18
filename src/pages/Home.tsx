@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles, Settings } from "lucide-react";
 // ─── CLERK & FIREBASE IMPORTS ───
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
-import { db } from "../lib/firebase"; // Ensure this path points to your firebase.ts
+import { db } from "../firebase"; // Ensure this path points to your firebase.ts
 import { doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
