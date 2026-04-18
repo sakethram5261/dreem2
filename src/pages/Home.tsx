@@ -8,10 +8,10 @@ import { doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
 const MODEL_TAG = "llama-3.3-70b · Groq";
 
 const PROMPTS = [
-  "Explain something complex in simple words",
-  "Help me write a short, punchy bio",
-  "What should I know about learning to code?",
-  "Give me a creative name for my project",
+  "I've been feeling a bit overwhelmed lately...",
+  "How can I practice more self-compassion today?",
+  "I need help processing a difficult conversation.",
+  "Can we do a quick grounding exercise?",
 ];
 
 interface Msg {
