@@ -47,7 +47,7 @@ export function Home() {
   const [history, setHistory] = useState<ChatSession[]>([]);
   const [activeId, setActiveId] = useState<string>(() => Date.now().toString());
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+ const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
