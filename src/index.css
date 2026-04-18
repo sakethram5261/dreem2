@@ -933,3 +933,39 @@ div[class*="cl-internal"] > a[href*="clerk.com"] {
     pointer-events: none; /* User must close sidebar to chat */
   }
 }
+/* Header inside sidebar (only for mobile) */
+.mobile-sidebar-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.close-sidebar-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 5px;
+}
+
+/* THE OVERLAY (The blurry background that closes the menu) */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 90; /* Sits behind the sidebar but above the chat */
+}
+
+@media (max-width: 768px) {
+  .mobile-sidebar-header {
+    display: flex;
+  }
+
+  .sidebar-dream {
+    z-index: 100; /* Ensure sidebar is on top of everything */
+    width: 280px !important;
+    position: fixed !important;
+  }
+}
