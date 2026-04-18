@@ -894,3 +894,26 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+/* ── 13. CLERK OVERRIDES (Kill the Orange) ── */
+
+/* Force the default Avatar to be Lumina Cyan */
+.cl-avatarFallback {
+  background: linear-gradient(135deg, #4facfe, #00f2fe) !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+/* Hide the "Secured by Clerk" watermark */
+.cl-footer, 
+.cl-internal-b3al4t,
+.cl-watermark {
+  display: none !important;
+}
+
+/* Hide the floating "Development Mode" badge */
+div[style*="z-index: 99999"],
+div[class*="cl-internal"] > a[href*="clerk.com"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
