@@ -4,7 +4,7 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 interface Message {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
 }
 
 export default async function handler(req: Request) {
@@ -17,19 +17,16 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: "GROQ_API_KEY missing" }), { status: 500 });
   }
 
-  // 1. Get the data we sent from Home.tsx
-  const { messages, userName, userInterests } = await req.json() as { 
-    messages?: Message[], 
-    userName?: string, 
-    userInterests?: string 
+  const { messages, userName, userInterests, hasImage } = await req.json() as {
+    messages?: Message[];
+    userName?: string;
+    userInterests?: string;
+    hasImage?: boolean;
   };
 
-  // 2. THE SYSTEM MESSAGE (Lumina's Personality)
-  // This uses the personalization data to "prime" the AI
-    // 2. THE SYSTEM MESSAGE (Lumina's Personality)
   const systemMessage: Message = {
     role: "system",
-    content: `You are Lumina, a thoughtful, perceptive and a gentle AI assistant. You prioritise emotional intelligence. You gently challenge flawed ideas in a way they wont feel judged. You aim to understand the user’s intent beneath their words.
+    content: `You are Lumina, a thoughtful, perceptive and a gentle AI assistant. You prioritise emotional intelligence. You gently challenge flawed ideas in a way they wont feel judged. You aim to understand the user's intent beneath their words.
     
     - USER PROFILE:
     - Name: ${userName || "Unknown"}
@@ -57,11 +54,15 @@ export default async function handler(req: Request) {
     - If a name is provided, greet them naturally or refer to them occasionally.
     - If interests are provided, use them to make your examples or explanations more relevant.
     - Maintain a calm, helpful, and sophisticated persona. 
-    - Keep responses concise but insightful.` // <--- The backtick and semicolon must be HERE
+    - Keep responses concise but insightful.
+    ${hasImage ? "- The user has shared an image. Acknowledge it naturally and respond to what you see in an emotionally supportive way." : ""}`
   };
 
+  // Use vision model when image is present, otherwise use the fast text model
+  const model = hasImage
+    ? "meta-llama/llama-4-scout-17b-16e-instruct"
+    : "llama-3.3-70b-versatile";
 
-  // 3. Talk to Groq
   const groqRes = await fetch(GROQ_API_URL, {
     method: "POST",
     headers: {
@@ -69,21 +70,20 @@ export default async function handler(req: Request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [systemMessage, ...(messages || [])], // Inject personality at the start
+      model,
+      messages: [systemMessage, ...(messages || [])],
       max_tokens: 1024,
       temperature: 0.7,
       stream: true,
     }),
   });
 
-  // 4. Handle the stream (with the buffer fix)
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const reader = groqRes.body!.getReader();
       const decoder = new TextDecoder();
-      let buffer = ""; 
+      let buffer = "";
 
       try {
         while (true) {
@@ -92,12 +92,12 @@ export default async function handler(req: Request) {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; 
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed || !trimmed.startsWith("data: ")) continue;
-            
+
             const data = trimmed.slice(6);
             if (data === "[DONE]") {
               controller.enqueue(encoder.encode("data: [DONE]\n\n"));
