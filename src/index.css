@@ -678,3 +678,35 @@ body {
 .menu-toggle-dream:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+/* ── 10. MOBILE RESPONSIVENESS (The Squish Fix) ── */
+@media (max-width: 768px) {
+  /* Make sidebar float over the chat instead of squishing it */
+  .sidebar-dream {
+    position: absolute;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+  }
+  
+  /* Remove the massive 15% margins on mobile */
+  .chat-viewport {
+    padding: 20px 16px; 
+  }
+  
+  .gemini-row-dream {
+    padding: 16px 0;
+    gap: 12px;
+  }
+
+  .dream-input-container {
+    padding: 16px;
+    background: #050508; /* Solid background so text doesn't overlap on scroll */
+  }
+
+  .text-body-dream {
+    font-size: 15px;
+    word-break: break-word; /* Forces long text to break normally */
+  }
+
+  .hero-text-dream {
+    font-size: 36px; /* Smaller hero text for phones */
+  }
+}
