@@ -141,9 +141,9 @@ export function Home() {
     }
   }, [msgs, loading, userName, userInterests]);
 
-  return (
+ return (
     <div className="app-container">
-      {/* ── Dreamy Background Layer ── */}
+      {/* ── Dreamy Background Layer (STAYS INSIDE) ── */}
       <div className="bg-scene" aria-hidden>
         <div className="bg-aurora" />
         <div className="bg-orb bg-orb-1" />
@@ -159,7 +159,7 @@ export function Home() {
         </div>
       </div>
 
-      {/* ── Frosted Sidebar ── */}
+      {/* ── Frosted Sidebar (STAYS INSIDE) ── */}
       <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
         <button className="new-chat-btn-dream" onClick={clearChat}>
           <Plus size={18} />
@@ -185,7 +185,7 @@ export function Home() {
         </div>
       </aside>
 
-      {/* ── Main Chat Area ── */}
+      {/* ── Main Chat Area (STAYS INSIDE) ── */}
       <main className="main-content-dream">
         <header className="dream-header">
           <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
@@ -247,6 +247,5 @@ export function Home() {
           <p className="footer-disclaimer-dream">Lumina's visions may be imperfect. Verify the essence.</p>
         </div>
       </main>
-    </div>
+    </div> // This is the ONLY closing div for app-container
   );
-}
