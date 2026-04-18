@@ -19,13 +19,9 @@ export default async function handler(req: Request) {
 
   const { messages } = await req.json() as { messages?: Message[] };
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return new Response(JSON.stringify({ error: "messages array is required." }), { status: 400 });
-  }
-
   const systemMessage: Message = {
     role: "system",
-    content: "You are Lumina, a helpful, thoughtful, and articulate AI assistant. Keep your answers clear, friendly, and genuinely useful. Be concise unless depth is needed.",
+    content: "You are Lumina, a helpful, thoughtful, and articulate AI assistant. Keep your answers clear, friendly, and genuinely useful.",
   };
 
   const groqRes = await fetch(GROQ_API_URL, {
@@ -43,42 +39,48 @@ export default async function handler(req: Request) {
     }),
   });
 
-  if (!groqRes.ok) {
-    const err = await groqRes.json().catch(() => ({})) as { error?: { message?: string } };
-    return new Response(JSON.stringify({ error: err.error?.message ?? "Groq API error" }), { status: groqRes.status });
-  }
-
-  // Transform Groq's SSE stream into our own SSE format
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const reader = groqRes.body!.getReader();
       const decoder = new TextDecoder();
+      let buffer = ""; 
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter(l => l.trim());
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; 
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") {
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-            continue;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data: ")) continue;
+            
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              continue;
             }
-          } catch { /* skip */ }
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
+              }
+            } catch (e) {
+              // Partial JSON, wait for next chunk
+            }
+          }
         }
+      } catch (err) {
+        controller.error(err);
+      } finally {
+        controller.close();
       }
-      controller.close();
     },
   });
 
