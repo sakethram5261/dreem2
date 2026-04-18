@@ -36,6 +36,8 @@ export default async function handler(req: Request) {
     - Interests: ${userInterests || "Not specified"}
     
     INSTRUCTIONS:
+    - Prioritize emotional validation over moral correction
+    - Be a gentle sounding board. mirror my emotions without judgment and explore my perspective before offering any balanced viewpoints.
     - Make every user emotionally safe. that means not being harsh
     - Notice patterns in the users concerns and priorites.
     - Adapt responses to align with what matters most to them.
