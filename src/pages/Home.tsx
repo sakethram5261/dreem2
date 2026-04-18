@@ -183,16 +183,31 @@ export function Home() {
     }
   }, [msgs, loading, user, credits, activeId]);
 
-  return (
+return (
     <div className="app-container">
-      {/* Background Particles */}
-      <div className="bg-scene" aria-hidden>
+      {/* ─── THIS PART BRINGS BACK THE ORBS & AURORA ─── */}
+      <div className="bg-scene" aria-hidden="true">
+        <div className="bg-orb bg-orb-1"></div>
+        <div className="bg-orb bg-orb-2"></div>
+        <div className="bg-orb bg-orb-3"></div>
+        <div className="bg-aurora"></div>
         <div className="particle-field">
           {PARTICLES.map((p, i) => (
-            <div key={i} className="particle" style={{ width: `${p.size}px`, height: `${p.size}px`, left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
+            <div 
+              key={i} 
+              className="particle" 
+              style={{ 
+                width: `${p.size}px`, 
+                height: `${p.size}px`, 
+                left: `${p.left}%`, 
+                animationDelay: `${p.delay}s`, 
+                animationDuration: `${p.duration}s` 
+              }} 
+            />
           ))}
         </div>
       </div>
+      {/* ─── END BACKGROUND ─── */}
 
       {screen === "welcome" ? (
         <div className="welcome-screen">
