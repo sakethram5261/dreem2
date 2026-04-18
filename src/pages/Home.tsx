@@ -234,16 +234,34 @@ useEffect(() => {
       ) : (
         <>
           {/* ─── SIDEBAR ─── */}
-          <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
-            <button className="new-chat-btn-dream" onClick={() => { setMsgs([]); setActiveId(Date.now().toString()); }}>
-              <Plus size={18} /> New Chat
-            </button>
+         <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
+  {/* ─── ADD THIS ─── */}
+  <div className="mobile-sidebar-header">
+    <span className="sidebar-label">Menu</span>
+    <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>
+      <Menu size={20} />
+    </button>
+  </div>
+  {/* ──────────────── */}
+
+  <button className="new-chat-btn-dream" onClick={() => { 
+    setMsgs([]); 
+    setActiveId(Date.now().toString());
+    // ADD THIS LINE TOO so it closes the menu when you start a new chat on mobile
+    if (window.innerWidth <= 768) setIsSidebarOpen(false); 
+  }}>
+    <Plus size={18} /> New Chat
+  </button>
             
             <div className="sidebar-section">
               <p className="sidebar-label">Recent Conversations</p>
               {history.length === 0 && <div className="history-empty">No past visions yet.</div>}
               {history.map(chat => (
-                <div key={chat.id} className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} onClick={() => { setActiveId(chat.id); setMsgs(chat.msgs); }}>
+                <div key={chat.id} className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} onClick={() => { 
+  setActiveId(chat.id); 
+  setMsgs(chat.msgs); 
+  if (window.innerWidth <= 768) setIsSidebarOpen(false); // Add this check
+}}
                   <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} /> 
                   <span className="history-text">{chat.title}</span>
                 </div>
