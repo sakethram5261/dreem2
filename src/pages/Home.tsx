@@ -184,36 +184,32 @@ export function Home() {
   }, [msgs, loading, user, credits, activeId]);
 
 return (
-    <div className="app-container">
-      {/* ─── THIS PART BRINGS BACK THE ORBS & AURORA ─── */}
-      <div className="bg-scene" aria-hidden="true">
-        <div className="bg-orb bg-orb-1"></div>
-        <div className="bg-orb bg-orb-2"></div>
-        <div className="bg-orb bg-orb-3"></div>
-        <div className="bg-aurora"></div>
-        <div className="particle-field">
-          {PARTICLES.map((p, i) => (
-            <div 
-              key={i} 
-              className="particle" 
-              style={{ 
-                width: `${p.size}px`, 
-                height: `${p.size}px`, 
-                left: `${p.left}%`, 
-                animationDelay: `${p.delay}s`, 
-                animationDuration: `${p.duration}s` 
-              }} 
-            />
-          ))}
-        </div>
+  <div className="app-container">
+    {/* ─── THE DRAMY BACKGROUND ─── */}
+    <div className="bg-scene" aria-hidden="true">
+      <div className="bg-orb bg-orb-1"></div>
+      <div className="bg-orb bg-orb-2"></div>
+      <div className="bg-orb bg-orb-3"></div>
+      <div className="bg-aurora"></div>
+      <div className="particle-field">
+        {PARTICLES.map((p, i) => (
+          <div key={i} className="particle" style={{ width: `${p.size}px`, height: `${p.size}px`, left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
+        ))}
       </div>
-      {/* ─── END BACKGROUND ─── */}
+    </div>
 
-      {screen === "welcome" ? (
-        <div className="welcome-screen">
-          <h1 className="welcome-title">Lumina</h1>
-          <button className="start-btn" onClick={() => setScreen("chat")}>Start Chatting</button>
+    {screen === "welcome" ? (
+      <div className="welcome-screen">
+        {/* ADDING THE LOGO ORB BACK */}
+        <div className="logo-orb">
+          <div className="logo-orb-inner"></div>
         </div>
+        <h1 className="welcome-title">Lumina</h1>
+        <p className="welcome-sub">Your personal cosmic oracle. Start a vision to begin.</p>
+        <button className="start-btn" onClick={() => setScreen("chat")}>
+          Start Chatting <Sparkles size={18} />
+        </button>
+      </div>
       ) : (
         <>
           <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
@@ -248,43 +244,60 @@ return (
             </div>
           </aside>
 
-          <main className="main-content-dream">
-            <header className="dream-header">
-              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu /></button>
-              <span className="lumina-logo-text">Lumina</span>
-              <div className="model-badge-dream">{MODEL_TAG}</div>
-            </header>
+<main className="main-content-dream">
+  {/* THIS IS THE HEADER PART */}
+  <header className="chat-header">
+    <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu /></button>
+    <div className="chat-header-orb"><div className="chat-header-orb-inner"></div></div>
+    <span className="chat-header-name">Lumina AI</span>
+    <div className="model-tag">{MODEL_TAG}</div>
+  </header>
 
-            <div className="chat-viewport">
-              {msgs.length === 0 ? (
-                <div className="dream-welcome">
-                  <h1 className="hero-text-dream">Hello, {user?.firstName || "friend"}</h1>
-                  <div className="hero-grid">
-                    {PROMPTS.map((p, i) => (
-                      <button key={i} className="hero-card-dream" onClick={() => send(p)}>{p}</button>
-                    ))}
-                  </div>
-                </div>
+<div className="chat-messages">
+    {msgs.length === 0 ? (
+      <div className="chat-empty">
+        <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
+        <p className="chat-empty-sub">How can I assist your vision today?</p>
+        <div className="prompt-chips">
+          {PROMPTS.map((p, i) => (
+            <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
+          ))}
+        </div>
+      </div>
               ) : (
-                <div className="messages-list-dream">
-                  {msgs.map((m, i) => (
-                    <div key={i} className={`gemini-row-dream ${m.role}`}>
-                      <div className="text-body-dream">{m.content}</div>
-                    </div>
-                  ))}
-                  <div ref={bottomRef} />
-                </div>
-              )}
+/* ─── THIS IS THE PART YOU NEED TO REPLACE ─── */
+      msgs.map((m, i) => (
+        <div key={i} className={`msg-row ${m.role}`}>
+          <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
+            <div className="msg-label">
+              <div className="msg-label-dot"></div>
+              {m.role === 'user' ? 'YOU' : 'LUMINA'}
             </div>
+            {m.content}
+            {m.streaming && <span className="stream-cursor"></span>}
+          </div>
+        </div>
+      ))
+      /* ─────────────────────────────────────────── */
+    )}
+    <div ref={bottomRef} />
+  </div>
 
-            <div className="dream-input-container">
-              <div className="dream-input-wrapper">
-                <input className="dream-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send(input)} placeholder="Ask Lumina..." />
-                <button className="dream-send" onClick={() => send(input)} disabled={loading}><Send size={18} /></button>
-              </div>
-            </div>
-          </main>
-        </>
+  <div className="chat-input-area">
+    <div className="input-wrap">
+      <input 
+        className="chat-input" 
+        value={input} 
+        onChange={(e) => setInput(e.target.value)} 
+        onKeyDown={(e) => e.key === "Enter" && send(input)} 
+        placeholder="Type a message..." 
+      />
+      <button className="send-btn" onClick={() => send(input)} disabled={loading}>
+        {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+      </button>
+    </div>
+  </div>
+</main>
       )}
     </div>
   );
