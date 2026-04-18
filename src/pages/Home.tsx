@@ -197,7 +197,7 @@ export function Home() {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6);
           if (data === "[DONE]") break;
-          try {
+try {
             const parsed = JSON.parse(data);
             if (parsed.text) {
               accumulated += parsed.text;
@@ -206,6 +206,9 @@ export function Home() {
                 updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
                 return updated;
               });
+              
+              // ─── ADD THIS LINE: Artificial Typing Delay ───
+              await new Promise(resolve => setTimeout(resolve, 20)); 
             }
           } catch { }
         }
