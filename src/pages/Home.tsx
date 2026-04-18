@@ -254,35 +254,35 @@ return (
   </header>
 
 <div className="chat-messages">
-    {msgs.length === 0 ? (
-      <div className="chat-empty">
-        <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
-        <p className="chat-empty-sub">How can I assist your vision today?</p>
-        <div className="prompt-chips">
-          {PROMPTS.map((p, i) => (
-            <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
-          ))}
-        </div>
-      </div>
-              ) : (
-/* ─── THIS IS THE PART YOU NEED TO REPLACE ─── */
-      msgs.map((m, i) => (
-        <div key={i} className={`msg-row ${m.role}`}>
-          <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
-            <div className="msg-label">
-              <div className="msg-label-dot"></div>
-              {m.role === 'user' ? 'YOU' : 'LUMINA'}
+            {msgs.length === 0 ? (
+              <div className="chat-empty">
+                <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
+                <p className="chat-empty-sub">How can I assist your vision today?</p>
+                <div className="prompt-chips">
+                  {PROMPTS.map((p, i) => (
+                    <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
+                  ))}
+                </div>
+              </div>
+          ) : (
+      /* ─── ADD THIS WRAPPER ─── */
+      <div className="chat-messages">
+        {msgs.map((m, i) => (
+          <div key={i} className={`msg-row ${m.role}`}>
+            <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
+              <div className="msg-label">
+                <div className="msg-label-dot"></div>
+                {m.role === 'user' ? 'YOU' : 'LUMINA'}
+              </div>
+              {m.content}
+              {m.streaming && <span className="stream-cursor"></span>}
             </div>
-            {m.content}
-            {m.streaming && <span className="stream-cursor"></span>}
           </div>
-        </div>
-      ))
-      /* ─────────────────────────────────────────── */
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      /* ──────────────────────── */
     )}
-    <div ref={bottomRef} />
-  </div>
-
   <div className="chat-input-area">
     <div className="input-wrap">
       <input 
