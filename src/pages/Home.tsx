@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles, Settings } from "lucide-react";
+import { Send, Loader2, Menu, Plus, Sparkles } from "lucide-react";
 // ─── CLERK & FIREBASE IMPORTS ───
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
-import { db } from "../firebase"; // Ensure this path points to your firebase.ts
+import { db } from "../lib/firebase"; // Double check this path matches your folder
 import { doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
@@ -48,13 +48,10 @@ export function Home() {
   const [activeId, setActiveId] = useState<string>(() => Date.now().toString());
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // ─── 1. SYNC FIREBASE CREDITS ───
@@ -77,7 +74,7 @@ export function Home() {
     syncUser();
   }, [user]);
 
-  // ─── 2. LOAD/SAVE LOCAL HISTORY ───
+  // ─── 2. LOCAL HISTORY LOGIC ───
   useEffect(() => {
     const saved = localStorage.getItem("lumina_history");
     if (saved) setHistory(JSON.parse(saved));
@@ -88,12 +85,11 @@ export function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history, msgs]);
 
-  // ─── 3. THE MASTER SEND FUNCTION ───
+  // ─── 3. SEND FUNCTION (With Credit Deduction) ───
   const send = useCallback(async (text: string) => {
     const t = text.trim();
     if (!t || loading) return;
 
-    // Credit Check
     if (credits !== null && credits <= 0) {
       alert("Your cosmic energy is depleted. Upgrade for more visions.");
       return;
@@ -126,7 +122,7 @@ export function Home() {
       const decoder = new TextDecoder();
       let accumulated = "";
 
-      while (true) {
+      while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
@@ -144,14 +140,13 @@ export function Home() {
                   updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
                   return updated;
                 });
-                await new Promise(r => setTimeout(r, 20)); // Typing Animation
+                await new Promise(r => setTimeout(r, 15));
               }
             } catch { }
           }
         }
       }
 
-      // SUBTRACT CREDIT
       if (user) {
         const userRef = doc(db, "users", user.id);
         await updateDoc(userRef, { credits: increment(-1) });
@@ -164,7 +159,6 @@ export function Home() {
         return updated;
       });
 
-      // Update History Title
       setHistory(prev => {
         const existingIdx = prev.findIndex(h => h.id === activeId);
         if (existingIdx >= 0) {
@@ -172,46 +166,46 @@ export function Home() {
           updated[existingIdx].msgs = [...nextMsgs, { role: "assistant", content: accumulated }];
           return updated;
         } else {
-          return [{ id: activeId, title: t.slice(0, 20), msgs: [...nextMsgs, { role: "assistant", content: accumulated }] }, ...prev];
+          return [{ id: activeId, title: t.slice(0, 24), msgs: [...nextMsgs, { role: "assistant", content: accumulated }] }, ...prev];
         }
       });
 
     } catch (e: any) {
-      if (e.name !== "AbortError") setError("Link severed.");
+      if (e.name !== "AbortError") console.error(e);
     } finally {
       setLoading(false);
     }
   }, [msgs, loading, user, credits, activeId]);
 
-return (
-  <div className="app-container">
-    {/* ─── THE DRAMY BACKGROUND ─── */}
-    <div className="bg-scene" aria-hidden="true">
-      <div className="bg-orb bg-orb-1"></div>
-      <div className="bg-orb bg-orb-2"></div>
-      <div className="bg-orb bg-orb-3"></div>
-      <div className="bg-aurora"></div>
-      <div className="particle-field">
-        {PARTICLES.map((p, i) => (
-          <div key={i} className="particle" style={{ width: `${p.size}px`, height: `${p.size}px`, left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
-        ))}
-      </div>
-    </div>
-
-    {screen === "welcome" ? (
-      <div className="welcome-screen">
-        {/* ADDING THE LOGO ORB BACK */}
-        <div className="logo-orb">
-          <div className="logo-orb-inner"></div>
+  return (
+    <div className="app-container">
+      {/* ─── FULL BACKGROUND SYSTEM ─── */}
+      <div className="bg-scene" aria-hidden="true">
+        <div className="bg-orb bg-orb-1"></div>
+        <div className="bg-orb bg-orb-2"></div>
+        <div className="bg-orb bg-orb-3"></div>
+        <div className="bg-aurora"></div>
+        <div className="particle-field">
+          {PARTICLES.map((p, i) => (
+            <div key={i} className="particle" style={{ width: `${p.size}px`, height: `${p.size}px`, left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
+          ))}
         </div>
-        <h1 className="welcome-title">Lumina</h1>
-        <p className="welcome-sub">Your personal cosmic oracle. Start a vision to begin.</p>
-        <button className="start-btn" onClick={() => setScreen("chat")}>
-          Start Chatting <Sparkles size={18} />
-        </button>
       </div>
+
+      {screen === "welcome" ? (
+        <div className="welcome-screen">
+          <div className="logo-orb">
+            <div className="logo-orb-inner"></div>
+          </div>
+          <h1 className="welcome-title">Lumina</h1>
+          <p className="welcome-sub">Your personal cosmic oracle. Start a vision to begin.</p>
+          <button className="start-btn" onClick={() => setScreen("chat")}>
+            Start Chatting <Sparkles size={18} />
+          </button>
+        </div>
       ) : (
         <>
+          {/* ─── SIDEBAR ─── */}
           <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
             <button className="new-chat-btn-dream" onClick={() => { setMsgs([]); setActiveId(Date.now().toString()); }}>
               <Plus size={18} /> New Chat
@@ -219,9 +213,11 @@ return (
             
             <div className="sidebar-section">
               <p className="sidebar-label">Recent Conversations</p>
+              {history.length === 0 && <div className="history-empty">No past visions yet.</div>}
               {history.map(chat => (
                 <div key={chat.id} className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} onClick={() => { setActiveId(chat.id); setMsgs(chat.msgs); }}>
-                  <Sparkles size={14} /> <span>{chat.title}</span>
+                  <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} /> 
+                  <span className="history-text">{chat.title}</span>
                 </div>
               ))}
             </div>
@@ -229,75 +225,77 @@ return (
             <div className="sidebar-footer">
               <SignedOut>
                 <SignInButton mode="modal">
-                  <button className="new-chat-btn-dream" style={{ width: '100%' }}>Sign In</button>
+                  <button className="new-chat-btn-dream" style={{ width: '100%', justifyContent: 'center' }}>Sign In</button>
                 </SignInButton>
               </SignedOut>
               <SignedIn>
                 <div className="user-profile-mini">
                   <UserButton afterSignOutUrl="/" />
                   <div className="user-info">
-                    <p className="u-name">{user?.firstName}</p>
-                    <p className="u-status" style={{ color: '#00f2fe' }}>{credits ?? 0} Visions Left</p>
+                    <p className="u-name">{user?.firstName || "Dreamer"}</p>
+                    <p className="u-status" style={{ color: credits !== null && credits < 3 ? '#ff4b2b' : '#00f2fe' }}>
+                      {credits ?? 0} Visions Left
+                    </p>
                   </div>
                 </div>
               </SignedIn>
             </div>
           </aside>
 
-<main className="main-content-dream">
-  {/* THIS IS THE HEADER PART */}
-  <header className="chat-header">
-    <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu /></button>
-    <div className="chat-header-orb"><div className="chat-header-orb-inner"></div></div>
-    <span className="chat-header-name">Lumina AI</span>
-    <div className="model-tag">{MODEL_TAG}</div>
-  </header>
+          {/* ─── MAIN CHAT ─── */}
+          <main className="main-content-dream">
+            <header className="chat-header">
+              <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu /></button>
+              <div className="chat-header-orb"><div className="chat-header-orb-inner"></div></div>
+              <span className="chat-header-name">Lumina AI</span>
+              <div className="model-tag">{MODEL_TAG}</div>
+            </header>
 
-<div className="chat-messages">
-            {msgs.length === 0 ? (
-              <div className="chat-empty">
-                <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
-                <p className="chat-empty-sub">How can I assist your vision today?</p>
-                <div className="prompt-chips">
-                  {PROMPTS.map((p, i) => (
-                    <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
-                  ))}
+            <div className="chat-messages">
+              {msgs.length === 0 ? (
+                <div className="chat-empty">
+                  <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
+                  <p className="chat-empty-sub">How can I assist your vision today?</p>
+                  <div className="prompt-chips">
+                    {PROMPTS.map((p, i) => (
+                      <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-          ) : (
-      /* ─── ADD THIS WRAPPER ─── */
-      <div className="chat-messages">
-        {msgs.map((m, i) => (
-          <div key={i} className={`msg-row ${m.role}`}>
-            <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
-              <div className="msg-label">
-                <div className="msg-label-dot"></div>
-                {m.role === 'user' ? 'YOU' : 'LUMINA'}
-              </div>
-              {m.content}
-              {m.streaming && <span className="stream-cursor"></span>}
+              ) : (
+                msgs.map((m, i) => (
+                  <div key={i} className={`msg-row ${m.role}`}>
+                    <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
+                      <div className="msg-label">
+                        <div className="msg-label-dot"></div>
+                        {m.role === 'user' ? 'YOU' : 'LUMINA'}
+                      </div>
+                      {m.content}
+                      {m.streaming && <span className="stream-cursor"></span>}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={bottomRef} />
             </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      /* ──────────────────────── */
-    )}
-  <div className="chat-input-area">
-    <div className="input-wrap">
-      <input 
-        className="chat-input" 
-        value={input} 
-        onChange={(e) => setInput(e.target.value)} 
-        onKeyDown={(e) => e.key === "Enter" && send(input)} 
-        placeholder="Type a message..." 
-      />
-      <button className="send-btn" onClick={() => send(input)} disabled={loading}>
-        {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-   </div> {/* Closes chat-input-area */}
-        </main>
-      </>
-    )}
-  </div>
+
+            <div className="chat-input-area">
+              <div className="input-wrap">
+                <input 
+                  className="chat-input" 
+                  value={input} 
+                  onChange={(e) => setInput(e.target.value)} 
+                  onKeyDown={(e) => e.key === "Enter" && send(input)} 
+                  placeholder="Ask Lumina..." 
+                />
+                <button className="send-btn" onClick={() => send(input)} disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                </button>
+              </div>
+            </div>
+          </main>
+        </>
+      )}
+    </div>
   );
 }
