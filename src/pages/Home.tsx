@@ -83,21 +83,27 @@ export function Home() {
     const assistantIdx = nextMsgs.length;
     setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
 
-    const ctrl = new AbortController();
+const ctrl = new AbortController();
     abortRef.current = ctrl;
+
+    // ADD THIS LINE: Strip out the 'streaming' property so Groq doesn't crash
+    const apiMessages = nextMsgs.slice(-10).map(m => ({ 
+      role: m.role, 
+      content: m.content 
+    }));
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          messages: nextMsgs.slice(-10),
+          messages: apiMessages, // <--- USE THE CLEAN MESSAGES HERE
           userName,
           userInterests
         }),
         signal: ctrl.signal,
       });
-
+      
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
