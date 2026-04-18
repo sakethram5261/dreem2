@@ -33,6 +33,20 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
+  // ─── NEW: Welcome Screen State ───
+  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
+    if (typeof window !== "undefined") {
+      const savedHistory = localStorage.getItem("lumina_history");
+      const savedMsgs = localStorage.getItem("lumina_v1_history");
+      // Skip welcome screen ONLY if they have past conversations
+      if ((savedHistory && JSON.parse(savedHistory).length > 0) || (savedMsgs && JSON.parse(savedMsgs).length > 0)) {
+        return "chat";
+      }
+    }
+    return "welcome";
+  });
+
+  // ─── MEMORY & HISTORY STATES ───
   const [history, setHistory] = useState<ChatSession[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lumina_history");
@@ -64,8 +78,15 @@ export function Home() {
     return (typeof window !== "undefined") ? localStorage.getItem("lumina_v1_interests") || "" : "";
   });
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isProfileOpen, setIsProfileOpen] = useState(false); // NEW STATE FOR MODAL
+  // ─── MOBILE FIX: Close sidebar by default on phones ───
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth > 768; 
+    }
+    return true;
+  });
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,6 +225,7 @@ export function Home() {
 
   return (
     <div className="app-container">
+      {/* ── BACKGROUND (Always Visible) ── */}
       <div className="bg-scene" aria-hidden>
         <div className="bg-aurora" />
         <div className="bg-orb bg-orb-1" />
@@ -219,106 +241,124 @@ export function Home() {
         </div>
       </div>
 
-      <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
-        <button className="new-chat-btn-dream" onClick={startNewChat}>
-          <Plus size={18} />
-          <span>New Chat</span>
-        </button>
-        
-        <div className="sidebar-section">
-          <p className="sidebar-label">Recent Conversations</p>
-          {history.length === 0 && (
-            <div className="history-empty">No past visions yet.</div>
-          )}
-          {history.map(chat => (
-            <div 
-              key={chat.id} 
-              className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
-              onClick={() => loadChat(chat.id)}
-            >
-              <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} />
-              <span className="history-text">{chat.title}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* CLICKABLE FOOTER */}
-        <div className="sidebar-footer clickable-footer" onClick={() => setIsProfileOpen(true)}>
-          <div className="user-profile-mini">
-            <div className="avatar-dream">{userName?.charAt(0) || "U"}</div>
-            <div className="user-info">
-              <p className="u-name">{userName || "Dreamer"}</p>
-              <p className="u-status">Lumina Oracle</p>
-            </div>
-            <Settings size={18} className="settings-icon" />
-          </div>
-        </div>
-      </aside>
-
-      <main className="main-content-dream">
-        <header className="dream-header">
-          <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+      {/* ── CONDITION 1: WELCOME SCREEN ── */}
+      {screen === "welcome" ? (
+        <div className="welcome-screen screen-enter" style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
+          <div className="logo-orb"><div className="logo-orb-inner" /></div>
+          <h1 className="welcome-title">Meet Lumina</h1>
+          <p className="welcome-sub">
+            An AI that actually gets you. Ask it anything — it writes, thinks,
+            explains, and creates alongside you.
+          </p>
+          <button className="start-btn" onClick={() => setScreen("chat")}>
+            <span>Start chatting</span>
+            <Sparkles size={16} />
           </button>
-          <div className="logo-section">
-            <div className="chat-header-orb"><div className="chat-header-orb-inner" /></div>
-            <span className="lumina-logo-text">Lumina</span>
-          </div>
-          <div className="model-badge-dream">{MODEL_TAG}</div>
-          <button className="icon-btn-clear" onClick={deleteCurrentChat} title="Delete this chat">
-            <Trash2 size={16} />
-          </button>
-        </header>
-
-        <div className="chat-viewport">
-          {msgs.length === 0 ? (
-            <div className="dream-welcome">
-              <h1 className="hero-text-dream">Hello, {userName || "friend"}</h1>
-              <p className="hero-sub">What shall we create in the ether today?</p>
-              <div className="hero-grid">
-                {PROMPTS.map((p, i) => (
-                  <button key={i} className="hero-card-dream" onClick={() => send(p)}>
-                    <p>{p}</p>
-                    <Plus size={14} className="card-icon" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="messages-list-dream">
-              {msgs.map((m, i) => (
-                <div key={i} className={`gemini-row-dream ${m.role}`}>
-                  <div className={`avatar-circle-dream ${m.role}`}>
-                    {m.role === "user" ? (userName?.charAt(0) || "U") : <Sparkles size={16} />}
-                  </div>
-                  <div className="gemini-content">
-                    <p className="sender-name-dream">{m.role === "user" ? "You" : "Lumina"}</p>
-                    <div className="text-body-dream">{m.content}</div>
-                  </div>
+        </div>
+      ) : (
+        /* ── CONDITION 2: MAIN DASHBOARD ── */
+        <>
+          <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
+            <button className="new-chat-btn-dream" onClick={startNewChat}>
+              <Plus size={18} />
+              <span>New Chat</span>
+            </button>
+            
+            <div className="sidebar-section">
+              <p className="sidebar-label">Recent Conversations</p>
+              {history.length === 0 && (
+                <div className="history-empty">No past visions yet.</div>
+              )}
+              {history.map(chat => (
+                <div 
+                  key={chat.id} 
+                  className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
+                  onClick={() => loadChat(chat.id)}
+                >
+                  <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} />
+                  <span className="history-text">{chat.title}</span>
                 </div>
               ))}
-              <div ref={bottomRef} />
             </div>
-          )}
-        </div>
 
-        <div className="dream-input-container">
-          <div className="dream-input-wrapper">
-            <input
-              ref={inputRef}
-              className="dream-input"
-              placeholder="Ask Lumina anything..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send(input)}
-            />
-            <button className="dream-send" onClick={() => send(input)} disabled={!input.trim() || loading}>
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-            </button>
-          </div>
-          <p className="footer-disclaimer-dream">Lumina's visions may be imperfect. Verify the essence.</p>
-        </div>
-      </main>
+            <div className="sidebar-footer clickable-footer" onClick={() => setIsProfileOpen(true)}>
+              <div className="user-profile-mini">
+                <div className="avatar-dream">{userName?.charAt(0) || "U"}</div>
+                <div className="user-info">
+                  <p className="u-name">{userName || "Dreamer"}</p>
+                  <p className="u-status">Lumina Oracle</p>
+                </div>
+                <Settings size={18} className="settings-icon" />
+              </div>
+            </div>
+          </aside>
+
+          <main className="main-content-dream">
+            <header className="dream-header">
+              <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              <div className="logo-section">
+                <div className="chat-header-orb"><div className="chat-header-orb-inner" /></div>
+                <span className="lumina-logo-text">Lumina</span>
+              </div>
+              <div className="model-badge-dream">{MODEL_TAG}</div>
+              <button className="icon-btn-clear" onClick={deleteCurrentChat} title="Delete this chat">
+                <Trash2 size={16} />
+              </button>
+            </header>
+
+            <div className="chat-viewport">
+              {msgs.length === 0 ? (
+                <div className="dream-welcome">
+                  <h1 className="hero-text-dream">Hello, {userName || "friend"}</h1>
+                  <p className="hero-sub">What shall we create in the ether today?</p>
+                  <div className="hero-grid">
+                    {PROMPTS.map((p, i) => (
+                      <button key={i} className="hero-card-dream" onClick={() => send(p)}>
+                        <p>{p}</p>
+                        <Plus size={14} className="card-icon" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="messages-list-dream">
+                  {msgs.map((m, i) => (
+                    <div key={i} className={`gemini-row-dream ${m.role}`}>
+                      <div className={`avatar-circle-dream ${m.role}`}>
+                        {m.role === "user" ? (userName?.charAt(0) || "U") : <Sparkles size={16} />}
+                      </div>
+                      <div className="gemini-content">
+                        <p className="sender-name-dream">{m.role === "user" ? "You" : "Lumina"}</p>
+                        <div className="text-body-dream">{m.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={bottomRef} />
+                </div>
+              )}
+            </div>
+
+            <div className="dream-input-container">
+              <div className="dream-input-wrapper">
+                <input
+                  ref={inputRef}
+                  className="dream-input"
+                  placeholder="Ask Lumina anything..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send(input)}
+                />
+                <button className="dream-send" onClick={() => send(input)} disabled={!input.trim() || loading}>
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                </button>
+              </div>
+              <p className="footer-disclaimer-dream">Lumina's visions may be imperfect. Verify the essence.</p>
+            </div>
+          </main>
+        </>
+      )}
 
       {/* ── SETTINGS MODAL OVERLAY ── */}
       {isProfileOpen && (
