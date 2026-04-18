@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles } from "lucide-react";
+import { Send, Loader2, Trash2, Plus, Menu, X, Sparkles, Settings } from "lucide-react";
 
 const MODEL_TAG = "llama-3.3-70b · Groq";
 
@@ -33,7 +33,6 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
-  // ─── MEMORY & HISTORY STATES ───
   const [history, setHistory] = useState<ChatSession[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lumina_history");
@@ -66,6 +65,7 @@ export function Home() {
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // NEW STATE FOR MODAL
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +74,6 @@ export function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // ─── SYNC TO LOCAL STORAGE ───
   useEffect(() => {
     localStorage.setItem("lumina_v1_history", JSON.stringify(msgs));
     localStorage.setItem("lumina_history", JSON.stringify(history));
@@ -83,7 +82,6 @@ export function Home() {
     localStorage.setItem("lumina_v1_interests", userInterests);
   }, [msgs, history, activeId, userName, userInterests]);
 
-  // ─── AUTO-SAVE CHAT TO HISTORY ───
   useEffect(() => {
     if (msgs.length > 0) {
       setHistory(prev => {
@@ -93,7 +91,6 @@ export function Home() {
           updated[existingIdx] = { ...updated[existingIdx], msgs };
           return updated;
         } else {
-          // Create a new entry in the sidebar, using the first message as the title
           const title = msgs[0].content.slice(0, 28) + (msgs[0].content.length > 28 ? "..." : "");
           return [{ id: activeId, title, msgs }, ...prev];
         }
@@ -105,7 +102,6 @@ export function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
 
-  // ─── CHAT MANAGEMENT ───
   const startNewChat = () => {
     setActiveId(Date.now().toString());
     setMsgs([]);
@@ -146,7 +142,6 @@ export function Home() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    // Remove the 'streaming' tag before sending to Groq to prevent crashes
     const apiMessages = nextMsgs.slice(-10).map(m => ({ 
       role: m.role, 
       content: m.content 
@@ -247,13 +242,15 @@ export function Home() {
           ))}
         </div>
 
-        <div className="sidebar-footer">
+        {/* CLICKABLE FOOTER */}
+        <div className="sidebar-footer clickable-footer" onClick={() => setIsProfileOpen(true)}>
           <div className="user-profile-mini">
             <div className="avatar-dream">{userName?.charAt(0) || "U"}</div>
             <div className="user-info">
               <p className="u-name">{userName || "Dreamer"}</p>
               <p className="u-status">Lumina Oracle</p>
             </div>
+            <Settings size={18} className="settings-icon" />
           </div>
         </div>
       </aside>
@@ -322,6 +319,44 @@ export function Home() {
           <p className="footer-disclaimer-dream">Lumina's visions may be imperfect. Verify the essence.</p>
         </div>
       </main>
+
+      {/* ── SETTINGS MODAL OVERLAY ── */}
+      {isProfileOpen && (
+        <div className="profile-overlay" onClick={() => setIsProfileOpen(false)}>
+          <div className="profile-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Identity Matrix</h2>
+              <button onClick={() => setIsProfileOpen(false)} className="close-modal"><X size={20} /></button>
+            </div>
+            <p className="modal-sub">Tune Lumina's perception of you.</p>
+            
+            <div className="modal-inputs">
+              <div className="input-group">
+                <label>Known As</label>
+                <input 
+                  type="text" 
+                  value={userName} 
+                  onChange={e => setUserName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+              <div className="input-group">
+                <label>Current Fascinations</label>
+                <input 
+                  type="text" 
+                  value={userInterests} 
+                  onChange={e => setUserInterests(e.target.value)}
+                  placeholder="e.g. Space, Philosophy, Coding"
+                />
+              </div>
+            </div>
+
+            <button className="save-modal-btn" onClick={() => setIsProfileOpen(false)}>
+              Synchronize
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
