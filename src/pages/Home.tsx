@@ -294,11 +294,10 @@ return (
       />
       <button className="send-btn" onClick={() => send(input)} disabled={loading}>
         {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-      </button>
-    </div>
+   </div> {/* Closes chat-input-area */}
+        </main>
+      </>
+    )}
   </div>
-</main>
-      )}
-    </div>
   );
 }
