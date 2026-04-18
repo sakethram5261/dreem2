@@ -916,3 +916,20 @@ div[class*="cl-internal"] > a[href*="clerk.com"] {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+@media (max-width: 768px) {
+  /* Make the sidebar a floating drawer */
+  .sidebar-dream {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 9999;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+  }
+
+  /* When the sidebar is open, prevent clicking things behind it */
+  .sidebar-dream.open + .main-content-dream {
+    filter: blur(4px);
+    pointer-events: none; /* User must close sidebar to chat */
+  }
+}
