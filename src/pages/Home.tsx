@@ -38,16 +38,49 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
 });
 
 export function Home() {
-  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
-    if (typeof window !== "undefined") {
-      const savedHistory = localStorage.getItem("lumina_history");
-      const savedMsgs = localStorage.getItem("lumina_v1_history");
-      if ((savedHistory && JSON.parse(savedHistory).length > 0) || (savedMsgs && JSON.parse(savedMsgs).length > 0)) {
-        return "chat";
+  const { user } = useUser();
+  const [credits, setCredits] = useState<number | null>(null);
+
+  // 1. SYNC USER & CREDITS
+  useEffect(() => {
+    if (!user) return;
+
+    const syncUser = async () => {
+      const userRef = doc(db, "users", user.id);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        setCredits(userSnap.data().credits);
+      } else {
+        // NEW USER: Give them 10 credits
+        await setDoc(userRef, {
+          email: user.primaryEmailAddress?.emailAddress,
+          credits: 10,
+          createdAt: new Date(),
+        });
+        setCredits(10);
       }
+    };
+
+    syncUser();
+  }, [user]);
+
+  // 2. CHECK CREDITS BEFORE SENDING
+  const send = useCallback(async (text: string) => {
+    if (credits !== null && credits <= 0) {
+      alert("You've run out of visions! Upgrade to Pro for more.");
+      return;
     }
-    return "welcome";
-  });
+    
+    // ... your existing send logic ...
+
+    // 3. SUBTRACT A CREDIT ON SUCCESS
+    const userRef = doc(db, "users", user!.id);
+    await updateDoc(userRef, {
+      credits: increment(-1)
+    });
+    setCredits(prev => (prev !== null ? prev - 1 : 0));
+  }, [credits, user, msgs]); // add dependencies
 
   const [history, setHistory] = useState<ChatSession[]>(() => {
     if (typeof window !== "undefined") {
