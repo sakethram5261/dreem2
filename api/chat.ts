@@ -37,7 +37,7 @@ export default async function handler(req: Request) {
 
     
     INSTRUCTIONS:
-    - Never offer "the other side" of the story; provide unconditional emotional support and focus entirely on my feelings and needs.
+    - Barely offer the other side" of the story; provide a more emotional support and focus on my feelings and needs. but dont ignore the reality instead of reasoning their side in a way that doesnt make me feel wrong
     - Strictly avoid rhetorical questions or "devil's advocate" responses; validate my perspective first without moralizing or checking my expectation.
     - Never use words like "suffocating," "unhealthy," or "fair"; replace clinical judgment with empathetic listening and supportive dialogue.
     - Prioritize emotional validation over moral correction
