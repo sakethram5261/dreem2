@@ -410,123 +410,155 @@ body {
 /* Ensure the logo is above inputs */
 .logo-orb { z-index: 10; }
 /* ── 1. Fix the main layout ── */
-/* --- FORCE LAYOUT --- */
+/* ── THE DREAMY GEMINI SYSTEM ── */
+
+/* 1. Main Layout Fix */
 .app-container {
   display: flex !important;
-  flex-direction: row !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  position: fixed !important;
-  inset: 0 !important;
+  width: 100vw;
+  height: 100vh;
   background: #050508;
   overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
-/* --- SIDEBAR --- */
+/* 2. Sidebar (Frosted Glass) */
 .sidebar-dream {
-  width: 280px !important;
-  height: 100% !important;
-  background: rgba(15, 15, 25, 0.45) !important;
-  backdrop-filter: blur(40px) !important;
-  -webkit-backdrop-filter: blur(40px);
+  width: 280px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   padding: 24px 16px;
   z-index: 50;
-  transition: all 0.3s ease;
   flex-shrink: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.sidebar-dream.closed { width: 0; padding: 0; opacity: 0; pointer-events: none; }
 
-.sidebar-dream.closed {
-  width: 0 !important;
-  padding: 0 !important;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* --- MAIN AREA --- */
+/* 3. Main Content Area */
 .main-content-dream {
-  flex: 1 !important;
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   position: relative;
+  z-index: 10;
   overflow: hidden;
 }
 
+/* 4. The Header */
+.dream-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  gap: 16px;
+}
+.logo-section { display: flex; align-items: center; gap: 10px; }
+.model-badge-dream { 
+  margin-left: auto; 
+  font-size: 10px; 
+  color: rgba(255,255,255,0.2); 
+  font-family: monospace;
+}
+
+/* 5. Chat Viewport (Centered) */
 .chat-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 40px 15%;
+  padding: 0 15%; /* This gives it the Gemini wide-look */
   display: flex;
   flex-direction: column;
 }
 
-/* --- CHAT ROWS --- */
+/* 6. Hero Welcome Screen (The Squashed Part) */
+.dream-welcome {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 10vh;
+}
+.hero-text-dream {
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 600;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.hero-sub { color: rgba(255,255,255,0.4); font-size: 18px; margin-bottom: 40px; }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+.hero-card-dream {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px;
+  border-radius: 16px;
+  color: rgba(255,255,255,0.8);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+  transition: all 0.3s ease;
+}
+.hero-card-dream:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 255, 255, 0.3);
+  transform: translateY(-4px);
+}
+
+/* 7. Chat Messages */
 .gemini-row-dream {
   display: flex;
   gap: 24px;
-  padding: 24px 0;
-  max-width: 900px;
-  width: 100%;
-  margin: 0 auto;
+  padding: 32px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
 }
-
-.gemini-content {
-  flex: 1;
+.avatar-circle-dream {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-weight: bold;
 }
-
-.text-body-dream {
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.7;
-  font-size: 16px;
+.avatar-circle-dream.user { background: rgba(255,255,255,0.1); }
+.avatar-circle-dream.assistant { 
+  background: rgba(0, 255, 255, 0.1); 
+  color: #00f2fe;
+  border: 1px solid rgba(0, 255, 255, 0.2);
 }
+.text-body-dream { line-height: 1.8; color: rgba(255,255,255,0.9); }
 
-/* --- INPUT PILL --- */
+/* 8. The Input Bar */
 .dream-input-container {
   padding: 20px 15% 40px 15%;
-  background: linear-gradient(transparent, #050508 40%);
+  background: linear-gradient(transparent, #050508 60%);
 }
-
 .dream-input-wrapper {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 28px;
+  border-radius: 24px;
   padding: 8px 12px 8px 24px;
   display: flex;
   align-items: center;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
-
 .dream-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: white;
-  padding: 12px 0;
-  font-size: 16px;
+  flex: 1; background: transparent; border: none; outline: none;
+  color: #fff; font-size: 16px; padding: 12px 0;
 }
-
-/* --- BUTTONS & ICONS --- */
-.new-chat-btn-dream {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 12px 20px;
-  border-radius: 16px;
-  color: white;
-  cursor: pointer;
-  margin-bottom: 24px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.new-chat-btn-dream:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(0, 255, 255, 0.3);
+.dream-send {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #00f2fe; color: #000; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: 0.2s;
 }
