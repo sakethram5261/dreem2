@@ -212,21 +212,41 @@ body {
 .chat-empty-sub { font-size: 0.875rem; color: hsla(210,40%,98%,0.38); }
 
 .prompt-chips {
-  display: flex; flex-wrap: wrap; gap: 0.5rem;
-  justify-content: center; max-width: 580px; margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 600px; /* Limits the width so they don't stretch too far */
+  margin: 2rem auto 0 auto;
+  padding: 0 1rem;
 }
+
 .prompt-chip {
-  padding: 0.5rem 1.1rem; border-radius: 9999px;
-  border: 1px solid hsla(210,40%,98%,0.08);
-  background: hsla(210,40%,98%,0.03);
-  color: hsla(210,40%,98%,0.58); font-size: 0.82rem; cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.15s;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap; /* Prevents text from wrapping inside the bubble */
 }
+
 .prompt-chip:hover {
-  border-color: hsla(180,100%,50%,0.38);
-  color: hsla(210,40%,98%,0.9);
-  background: hsla(180,100%,50%,0.06);
-  transform: translateY(-1px);
+  background: rgba(0, 242, 254, 0.1);
+  border-color: #00f2fe;
+  transform: translateY(-2px);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .prompt-chip {
+    white-space: normal; /* Allows wrapping on small phones so they don't go off-screen */
+    text-align: center;
+    width: 100%; /* Stacks them neatly on very small screens */
+    max-width: 300px;
+  }
 }
 
 .msg-row { display: flex; }
