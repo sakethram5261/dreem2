@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { Home } from "./pages/Home";
+import { Constellation } from "./pages/Constellation";
 
 function NotFound() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/constellation" component={Constellation} />
       <Route component={NotFound} />
     </Switch>
   );
