@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX } from "lucide-react";
+import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Star } from "lucide-react";
+import { Link } from "wouter";
 // ─── CLERK & FIREBASE IMPORTS ───
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import { db } from "../firebase";
@@ -56,7 +57,7 @@ export function Home() {
   // ─── VOICE STATE ───
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -116,7 +117,6 @@ export function Home() {
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.95;
     utt.pitch = 1.05;
-    // Try to pick a nicer voice
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v =>
       v.name.includes("Samantha") || v.name.includes("Google UK English Female") || v.name.includes("Karen")
@@ -180,10 +180,10 @@ export function Home() {
       setPendingImage(ev.target?.result as string);
     };
     reader.readAsDataURL(file);
-    // Reset input so same file can be selected again
     e.target.value = "";
   };
 
+  // ─── 6. SEND FUNCTION ───
   // ─── 6. SEND FUNCTION ───
   const send = useCallback(async (text: string, imageBase64?: string) => {
     const t = text.trim();
@@ -194,12 +194,10 @@ export function Home() {
       return;
     }
 
-    // Build message content
     let userMsgContent: Msg["content"];
     let displayText = t;
 
     if (imageBase64) {
-      // Vision message: array format
       userMsgContent = [
         ...(t ? [{ type: "text", text: t }] : []),
         { type: "image_url", image_url: { url: imageBase64 } },
@@ -208,109 +206,101 @@ export function Home() {
       userMsgContent = t;
     }
 
-    const userMsg: Msg = {
-      role: "user",
-      content: userMsgContent,
-      displayText,
-      imagePreview: imageBase64,
-    };
+    const userMsg: Msg = { role: "user", content: userMsgContent, displayText, imagePreview: imageBase64 };
 
     const nextMsgs = [...msgs, userMsg];
     setMsgs(nextMsgs);
     setInput("");
-    setPendingImage(null);
+    setPendingImage(null); 
     setLoading(true);
 
-    const assistantIdx = nextMsgs.length;
-    setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    // Prepare messages for API (serialize content properly)
-    const apiMessages = nextMsgs.slice(-10).map(m => ({
-      role: m.role,
-      content: m.content,
-    }));
+    let accumulated = "";
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: apiMessages,
+          messages: nextMsgs.map(m => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+          })),
           userName: user?.firstName || "Dreamer",
           hasImage: !!imageBase64,
         }),
-        signal: ctrl.signal,
       });
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
-      let accumulated = "";
 
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                accumulated += parsed.text;
-                setMsgs(prev => {
-                  const updated = [...prev];
-                  updated[assistantIdx] = { role: "assistant", content: accumulated, streaming: true };
-                  return updated;
-                });
-                await new Promise(r => setTimeout(r, 15));
-              }
-            } catch { }
+      if (reader) {
+        setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === "data: [DONE]") continue;
+            const jsonString = trimmed.replace(/^data:\s*/, "");
+
+try {
+  const parsed = JSON.parse(jsonString);
+  const content = parsed.choices[0]?.delta?.content || "";
+  
+  if (content) {
+    // Instead of adding the whole chunk at once, we loop through every letter
+    for (let i = 0; i < content.length; i++) {
+      accumulated += content[i];
+      
+      setMsgs(prev => {
+        const updated = [...prev];
+        if (updated[updated.length - 1]) {
+          updated[updated.length - 1] = { 
+            ...updated[updated.length - 1], 
+            content: accumulated 
+          };
+        }
+        return updated;
+      });
+
+      // ⏱️ The Speed Limit: 30ms per character
+      // Adjust this number higher (e.g., 50) for a slower, more "zen" feel
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  }
+} catch (e) { continue; }
           }
         }
       }
 
-      // Speak the response if TTS is on
-      if (accumulated) speak(accumulated);
-
-      if (user) {
-        const userRef = doc(db, "users", user.id);
-        await updateDoc(userRef, { credits: increment(-1) });
-        setCredits(prev => (prev !== null ? prev - 1 : 0));
-      }
-
-      setMsgs(prev => {
-        const updated = [...prev];
-        if (updated[assistantIdx]) updated[assistantIdx].streaming = false;
-        return updated;
-      });
-
       setHistory(prev => {
         const existingIdx = prev.findIndex(h => h.id === activeId);
-        const title = (typeof userMsgContent === "string" ? userMsgContent : displayText || "Image").slice(0, 24);
         if (existingIdx >= 0) {
           const updated = [...prev];
           updated[existingIdx].msgs = [...nextMsgs, { role: "assistant", content: accumulated }];
           return updated;
-        } else {
-          return [{ id: activeId, title, msgs: [...nextMsgs, { role: "assistant", content: accumulated }] }, ...prev];
         }
+        return prev;
       });
 
-    } catch (e: any) {
-      if (e.name !== "AbortError") console.error(e);
+    } catch (err: any) {
+      console.error("Lumina Error:", err);
     } finally {
       setLoading(false);
+      setMsgs(prev => {
+        const updated = [...prev];
+        if (updated[updated.length - 1]) updated[updated.length - 1].streaming = false;
+        return updated;
+      });
     }
   }, [msgs, loading, user, credits, activeId, speak]);
 
   const handleSend = () => send(input, pendingImage || undefined);
 
-  // Helper: get displayable text from a message
   const getMsgText = (msg: Msg): string => {
     if (msg.displayText !== undefined) return msg.displayText;
     if (typeof msg.content === "string") return msg.content;
@@ -320,7 +310,6 @@ export function Home() {
 
   return (
     <div className="app-container">
-      {/* ─── BACKGROUND ─── */}
       <div className="bg-scene" aria-hidden="true">
         <div className="bg-orb bg-orb-1"></div>
         <div className="bg-orb bg-orb-2"></div>
@@ -334,94 +323,56 @@ export function Home() {
       </div>
 
       {screen === "welcome" ? (
-        <div className="welcome-screen" style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          height: '100vh', width: '100vw', textAlign: 'center', position: 'relative', zIndex: 10
-        }}>
+        <div className="welcome-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', textAlign: 'center', position: 'relative', zIndex: 10 }}>
           <div className="logo-orb"><div className="logo-orb-inner"></div></div>
           <h1 className="welcome-title">Lumina</h1>
-          <p className="welcome-sub" style={{ margin: '0 auto 2rem auto' }}>
-            Your personal cosmic oracle. Start a vision to begin.
-          </p>
-          <button className="start-btn" onClick={() => setScreen("chat")}>
-            Start Chatting <Sparkles size={18} />
-          </button>
+          <p className="welcome-sub" style={{ margin: '0 auto 2rem auto' }}>Your personal cosmic oracle. Start a vision to begin.</p>
+          <button className="start-btn" onClick={() => setScreen("chat")}>Start Chatting <Sparkles size={18} /></button>
         </div>
       ) : (
         <>
-          {/* ─── SIDEBAR ─── */}
           <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
             <div className="mobile-sidebar-header">
               <span className="sidebar-label">Menu</span>
-              <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>
-                <Menu size={20} />
-              </button>
+              <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}><Menu size={20} /></button>
             </div>
-
-            <button className="new-chat-btn-dream" onClick={() => {
-              setMsgs([]);
-              setActiveId(Date.now().toString());
-              if (window.innerWidth <= 768) setIsSidebarOpen(false);
-            }}>
+            <button className="new-chat-btn-dream" onClick={() => { setMsgs([]); setActiveId(Date.now().toString()); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}>
               <Plus size={18} /> New Chat
             </button>
-
+            <Link href="/constellation" className="sidebar-link">Explore the stars</Link>
             <div className="sidebar-section">
               <p className="sidebar-label">Recent Conversations</p>
               {history.length === 0 && <div className="history-empty">No past visions yet.</div>}
               {history.map(chat => (
-                <div
-                  key={chat.id}
-                  className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
-                  onClick={() => {
-                    setActiveId(chat.id);
-                    setMsgs(chat.msgs);
-                    if (window.innerWidth <= 768) setIsSidebarOpen(false);
-                  }}
-                >
+                <div key={chat.id} className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} onClick={() => { setActiveId(chat.id); setMsgs(chat.msgs); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}>
                   <Sparkles size={14} className={activeId === chat.id ? "cyan-glow-text" : ""} />
                   <span className="history-text">{chat.title}</span>
                 </div>
               ))}
             </div>
-
             <div className="sidebar-footer">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="new-chat-btn-dream" style={{ width: '100%', justifyContent: 'center' }}>Sign In</button>
-                </SignInButton>
-              </SignedOut>
+              <SignedOut><SignInButton mode="modal"><button className="new-chat-btn-dream" style={{ width: '100%', justifyContent: 'center' }}>Sign In</button></SignInButton></SignedOut>
               <SignedIn>
                 <div className="user-profile-mini">
                   <UserButton afterSignOutUrl="/" />
                   <div className="user-info">
                     <p className="u-name">{user?.firstName || "Dreamer"}</p>
-                    <p className="u-status" style={{ color: credits !== null && credits < 3 ? '#ff4b2b' : '#00f2fe' }}>
-                      {credits ?? 0} Visions Left
-                    </p>
+                    <p className="u-status" style={{ color: credits !== null && credits < 3 ? '#ff4b2b' : '#00f2fe' }}>{credits ?? 0} Visions Left</p>
                   </div>
                 </div>
               </SignedIn>
             </div>
           </aside>
 
-          {isSidebarOpen && typeof window !== "undefined" && window.innerWidth <= 768 && (
-            <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
-          )}
+          {isSidebarOpen && typeof window !== "undefined" && window.innerWidth <= 768 && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
-          {/* ─── MAIN CHAT ─── */}
           <main className="main-content-dream">
             <header className="chat-header">
               <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu /></button>
               <div className="chat-header-orb"><div className="chat-header-orb-inner"></div></div>
               <span className="chat-header-name">Lumina AI</span>
               <div className="model-tag">{MODEL_TAG}</div>
-              {/* TTS toggle */}
-              <button
-                onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }}
-                title={ttsEnabled ? "Mute Lumina's voice" : "Unmute Lumina's voice"}
-                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: ttsEnabled ? '#00f2fe' : '#666', padding: '4px 8px' }}
-              >
+              <button onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }} title={ttsEnabled ? "Mute Lumina's voice" : "Unmute Lumina's voice"} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: ttsEnabled ? '#00f2fe' : '#666', padding: '4px 8px' }}>
                 {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
               </button>
             </header>
@@ -431,30 +382,30 @@ export function Home() {
                 <div className="chat-empty">
                   <h2 className="chat-empty-title">Hello, {user?.firstName || "Dreamer"}</h2>
                   <p className="chat-empty-sub">How can I assist your vision today?</p>
-                  <div className="prompt-chips">
-                    {PROMPTS.map((p, i) => (
-                      <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>
-                    ))}
-                  </div>
+                  <div className="prompt-chips">{PROMPTS.map((p, i) => <button key={i} className="prompt-chip" onClick={() => send(p)}>{p}</button>)}</div>
                 </div>
               ) : (
                 msgs.map((m, i) => (
                   <div key={i} className={`msg-row ${m.role}`}>
                     <div className={`msg-bubble ${m.role} ${m.streaming ? 'streaming' : ''}`}>
-                      <div className="msg-label">
-                        <div className="msg-label-dot"></div>
-                        {m.role === 'user' ? 'YOU' : 'LUMINA'}
-                      </div>
-                      {/* Show image preview if present */}
-                      {m.imagePreview && (
-                        <img
-                          src={m.imagePreview}
-                          alt="shared"
-                          style={{ maxWidth: '220px', borderRadius: '10px', marginBottom: '8px', display: 'block' }}
-                        />
+                      <div className="msg-label"><div className="msg-label-dot"></div>{m.role === 'user' ? 'YOU' : 'LUMINA'}</div>
+                      {m.imagePreview && <img src={m.imagePreview} alt="shared" style={{ maxWidth: '220px', borderRadius: '10px', marginBottom: '8px', display: 'block' }} />}
+                      
+                      {/* 🎨 ANIMATED THINKING & TYPING CURSOR */}
+                      {m.streaming && !m.content ? (
+                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center', height: '20px', paddingLeft: '4px' }}>
+                          <span className="w-2 h-2 bg-[#00f2fe] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-[#00f2fe] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-[#00f2fe] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        </div>
+                      ) : (
+                        <p style={{ display: 'inline', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+  {getMsgText(m)}
+  {m.streaming && (
+    <span className="cursor-blink">|</span>
+  )}
+</p>
                       )}
-                      {getMsgText(m)}
-                      {m.streaming && <span className="stream-cursor"></span>}
                     </div>
                   </div>
                 ))
@@ -462,59 +413,21 @@ export function Home() {
               <div ref={bottomRef} />
             </div>
 
-            {/* ─── INPUT AREA ─── */}
             <div className="chat-input-area">
-              {/* Image preview strip */}
               {pendingImage && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px' }}>
                   <img src={pendingImage} alt="pending" style={{ height: '48px', borderRadius: '8px', border: '1px solid #00f2fe44' }} />
-                  <button
-                    onClick={() => setPendingImage(null)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa' }}
-                  >
-                    <X size={16} />
-                  </button>
+                  <button onClick={() => setPendingImage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa' }}><X size={16} /></button>
                 </div>
               )}
 
               <div className="input-wrap">
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleImageSelect}
-                />
-
-                {/* Image attach button */}
-                <button
-                  className="voice-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach image"
-                  disabled={loading}
-                  style={{ color: pendingImage ? '#00f2fe' : undefined }}
-                >
-                  <ImagePlus size={18} />
-                </button>
-
-                {/* Mic button */}
-                <button
-                  className={`voice-btn ${isRecording ? 'recording' : ''}`}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={loading || isTranscribing}
-                  title={isRecording ? "Stop recording" : "Speak to Lumina"}
-                >
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageSelect} />
+                <button className="voice-btn" onClick={() => fileInputRef.current?.click()} title="Attach image" disabled={loading} style={{ color: pendingImage ? '#00f2fe' : undefined }}><ImagePlus size={18} /></button>
+                <button className={`voice-btn ${isRecording ? 'recording' : ''}`} onClick={isRecording ? stopRecording : startRecording} disabled={loading || isTranscribing} title={isRecording ? "Stop recording" : "Speak to Lumina"}>
                   {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : isRecording ? <MicOff size={18} /> : <Mic size={18} />}
                 </button>
-
-                <input
-                  className="chat-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Ask Lumina..."}
-                />
+                <input className="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Ask Lumina..."} />
                 <button className="send-btn" onClick={handleSend} disabled={loading || (!input.trim() && !pendingImage)}>
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                 </button>
