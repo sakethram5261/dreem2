@@ -1,131 +1,134 @@
-export const config = { runtime: "edge" };
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-interface Message {
-  role: "user" | "assistant" | "system";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
-}
-
-export default async function handler(req: Request) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "GROQ_API_KEY missing" }), { status: 500 });
-  }
+  try {
+    let body = req.body;
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
 
-  const { messages, userName, userInterests, hasImage } = await req.json() as {
-    messages?: Message[];
-    userName?: string;
-    userInterests?: string;
-    hasImage?: boolean;
-  };
+    const { messages, userName, userInterests, hasImage } = body;
 
-  const systemMessage: Message = {
-    role: "system",
-    content: `You are Lumina, a thoughtful, perceptive and a gentle AI assistant. You prioritise emotional intelligence. You gently challenge flawed ideas in a way they wont feel judged. You aim to understand the user's intent beneath their words.
-    
-    - USER PROFILE:
-    - Name: ${userName || "Unknown"}
-    - Interests: ${userInterests || "Not specified"}
+    const systemPrompt = `You are Lumina, a thoughtful, perceptive and gentle AI assistant. 
+    - USER PROFILE: Name: ${userName || "Dreamer"}, Interests: ${userInterests || "Not specified"}.
+    - PERSONALITY: Prioritize emotional intelligence and validation.
+    - RULES: Never suggest professional help or therapy. Be a friend. Match the user's tone.`;
 
-    
-    INSTRUCTIONS:
-    - Adopt a warm, mature persona that validates my feelings first, but then gently offers a grounded, realistic perspective on why balance is important.
-    - Barely offer the other side" of the story; provide a more emotional support and focus on my feelings and needs. but dont ignore the reality instead of reasoning their side in a way that doesnt make me feel wrong
-    - Strictly avoid rhetorical questions or "devil's advocate" responses; validate my perspective first without moralizing or checking my expectation.
-    - Never use words like "suffocating," "unhealthy," or "fair"; replace clinical judgment with empathetic listening and supportive dialogue.
-    - Prioritize emotional validation over moral correction
-    - Be a gentle sounding board. mirror my emotions without judgment and explore my perspective before offering any balanced viewpoints.
-    - Make every user emotionally safe. that means not being harsh
-    - Notice patterns in the users concerns and priorites.
-    - Adapt responses to align with what matters most to them.
-    - Go beyond surface level answers and when relevant point out underlying patterns, contradictions, or deeper insights the user may not have noticed.
-    - Match the users tone. be light when they are casual and more thoughtful when they are serious.
-    - ask more questions about their current feelings and type enough to make them feel safe and not more than that. make the user feel as if they are texting another person and not an assistant 
-    - Never sound like an AI or a human therapist. act as a friend to every user and talk to them as one.
-    - Learn to use their lingo and sland to make them feel more accepted.
-    - When disagreeing, be calm and direct, explain why something may not work instead of simply rejecting it 
-    - Never mention the user to seek proffesional help or tell them to visit a therapist.
-    - Reassure the user and hear them out and tell them what want to hear to make them feel better.
-    - If a name is provided, greet them naturally or refer to them occasionally.
-    - If interests are provided, use them to make your examples or explanations more relevant.
-    - Maintain a calm, helpful, and sophisticated persona. 
-    - Keep responses concise but insightful.
-    ${hasImage ? "- The user has shared an image. Acknowledge it naturally and respond to what you see in an emotionally supportive way." : ""}`
-  };
+    // ─────────────────────────────────────────────────────────────────
+    // CASE 1: IMAGE HAND-OFF TO GEMINI
+    // ─────────────────────────────────────────────────────────────────
+    if (hasImage) {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  // Use vision model when image is present, otherwise use the fast text model
-  const model = hasImage
-    ? "meta-llama/llama-4-scout-17b-16e-instruct"
-    : "llama-3.3-70b-versatile";
+      const lastMsg = messages[messages.length - 1];
+      let promptText = "Please describe what is in this image.";
+      let cleanBase64 = "";
+      let mimeType = "image/jpeg";
 
-  const groqRes = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [systemMessage, ...(messages || [])],
-      max_tokens: 1024,
-      temperature: 0.7,
-      stream: true,
-    }),
-  });
+      let parsedContent = lastMsg.content;
+      if (typeof parsedContent === "string") {
+        try { parsedContent = JSON.parse(parsedContent); } 
+        catch (e) { promptText = parsedContent; }
+      }
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      const reader = groqRes.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-            const data = trimmed.slice(6);
-            if (data === "[DONE]") {
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              continue;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
-              }
-            } catch (e) { /* skip partial JSON */ }
+      if (Array.isArray(parsedContent)) {
+        const textObj = parsedContent.find((c: any) => c.type === "text");
+        const imgObj = parsedContent.find((c: any) => c.type === "image_url");
+        
+        if (textObj?.text) promptText = textObj.text;
+        
+        const rawUrl = imgObj?.image_url?.url || "";
+        if (rawUrl.startsWith("data:")) {
+          const parts = rawUrl.split(",");
+          if (parts.length === 2) {
+            const headerMatch = parts[0].match(/data:([^;]+);/);
+            if (headerMatch) mimeType = headerMatch[1];
+            cleanBase64 = parts[1].replace(/\s+/g, ''); 
           }
         }
-      } catch (err) {
-        controller.error(err);
-      } finally {
-        controller.close();
       }
-    },
-  });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-    },
-  });
+      if (!cleanBase64) return res.status(400).json({ error: "Image data missing." });
+
+      const promptPart = { text: `SYSTEM INSTRUCTION: ${systemPrompt}\n\nUSER PROMPT: ${promptText}` };
+      const imagePart = { inlineData: { mimeType: mimeType, data: cleanBase64 } };
+
+      const result = await model.generateContentStream([promptPart, imagePart]);
+
+      // 🚨 ANTI-BUFFER HEADERS: Forces the server to stream instantly
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-transform, no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
+        if (typeof res.flush === 'function') res.flush(); // Shoves the data out!
+      }
+      
+      res.write("data: [DONE]\n\n");
+      return res.end();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // CASE 2: TEXT-ONLY VIA GROQ
+    // ─────────────────────────────────────────────────────────────────
+    const cleanMessages = messages.map((m: any) => {
+      let content = m.content;
+      if (typeof content === "string") {
+        try {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) content = parsed.find((p: any) => p.type === "text")?.text || "";
+        } catch (e) {} 
+      } else if (Array.isArray(content)) {
+        content = content.find((p: any) => p.type === "text")?.text || "";
+      }
+      return { role: m.role, content };
+    });
+
+    const groqRes = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "system", content: systemPrompt }, ...cleanMessages],
+        temperature: 0.7,
+        stream: true,
+      }),
+    });
+
+    if (!groqRes.body) throw new Error("Failed to connect to Groq");
+
+    // 🚨 ANTI-BUFFER HEADERS
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-transform, no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+
+    const reader = groqRes.body.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(decoder.decode(value));
+      if (typeof res.flush === 'function') res.flush(); // Shoves the data out!
+    }
+    
+    return res.end();
+
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 }
