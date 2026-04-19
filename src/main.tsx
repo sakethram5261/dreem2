@@ -1,14 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { Home } from './pages/Home.tsx' 
+import App from './App.tsx'
 import './index.css'
 import { ClerkProvider } from '@clerk/clerk-react'
-import { dark } from '@clerk/themes' // ─── NEW: Import the dark theme
+import { dark } from '@clerk/themes'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = "pk_test_bXVzaWNhbC1idXp6YXJkLTQwLmNsZXJrLmFjY291bnRzLmRldiQ";
 
 if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key")
+  throw new Error("Missing Publishable Key");
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -50,7 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         }
       }}
     >
-      <Home /> 
+      <App />
     </ClerkProvider>
   </React.StrictMode>,
 )
