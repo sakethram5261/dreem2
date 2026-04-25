@@ -76,11 +76,31 @@
   --ease-glass: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   --duration-fast: 0.2s;
-  --duration-normal: 0.4s;
-  --duration-slow: 0.6s;
-  --duration-slower: 0.8s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
+}
+
+/* GPU Acceleration for smooth animations */
+.app-container,
+.sidebar-dream,
+.chat-area-dream,
+.dream-header,
+.breathing-widget,
+.breathing-trigger,
+.breathing-panel,
+.breathing-circle,
+.new-chat-btn-dream,
+.history-item-dream,
+.hero-card-dream,
+.chat-header-orb,
+.dream-send,
+.dream-input-wrapper {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* ── MORNING THEME - Muted Ash Tones ── */
@@ -172,46 +192,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   transition: background var(--duration-slow) var(--ease-glass),
               color var(--duration-slow) var(--ease-glass);
-  position: relative;
-}
-
-/* Ambient floating particles for depth */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    radial-gradient(circle at 20% 30%, var(--orb-1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, var(--orb-2) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, var(--orb-3) 0%, transparent 60%);
-  opacity: 0.6;
-  animation: ambientFloat 20s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at 50% 50%, transparent 0%, var(--bg-base) 100%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-@keyframes ambientFloat {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.6;
-  }
-  33% {
-    transform: translate(-10px, -15px) scale(1.1);
-    opacity: 0.7;
-  }
-  66% {
-    transform: translate(10px, 10px) scale(0.95);
-    opacity: 0.5;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -462,19 +442,6 @@ body::after {
   position: fixed;
   inset: 0;
   transition: background var(--duration-slow) var(--ease-glass);
-  z-index: 10;
-  animation: appFadeIn 0.8s var(--ease-glass) forwards;
-}
-
-@keyframes appFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -552,7 +519,7 @@ body::after {
 }
 
 .new-chat-btn-dream:hover {
-  transform: translateY(-2px) scale(1.02);
+  transform: translateY(-2px) scale(1.02) translateZ(0);
   border-color: var(--border-focus);
   box-shadow: 0 8px 24px var(--glow-soft), var(--shadow-inset);
 }
@@ -562,8 +529,8 @@ body::after {
 }
 
 .new-chat-btn-dream:active {
-  transform: translateY(0) scale(0.98);
-  transition: all 0.1s var(--ease-smooth);
+  transform: translateY(0) scale(0.98) translateZ(0);
+  transition: all 0.1s ease-out;
 }
 
 .sidebar-section {
@@ -593,21 +560,6 @@ body::after {
   font-weight: 600;
 }
 
-/* Wellness Streak Tracker */
-.wellness-streak {
-  background: var(--glass-2);
-  border: 1px solid var(--border-glow);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-bottom: 20px;
-  animation: streakGlow 3s ease-in-out infinite;
-}
-
-@keyframes streakGlow {
-  0%, 100% { box-shadow: 0 0 0 rgba(180, 160, 255, 0); }
-  50% { box-shadow: 0 0 20px var(--glow-soft); }
-}
-
 .history-item-dream {
   display: flex;
   align-items: center;
@@ -626,8 +578,7 @@ body::after {
   background: var(--glass-hover);
   color: var(--text-primary);
   border-color: var(--border-glass);
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateX(4px) translateZ(0);
 }
 
 .history-item-dream.active {
@@ -830,42 +781,8 @@ body::after {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  animation: orbFloat 6s ease-in-out infinite, orbGlow 4s ease-in-out infinite;
+  animation: orbFloat 6s ease-in-out infinite;
   box-shadow: var(--shadow-glow);
-  position: relative;
-}
-
-.chat-header-orb::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    var(--accent-lavender) 90deg,
-    transparent 180deg,
-    var(--accent-rose) 270deg,
-    transparent 360deg
-  );
-  opacity: 0.3;
-  animation: orbRotate 8s linear infinite;
-  z-index: -1;
-  filter: blur(4px);
-}
-
-@keyframes orbGlow {
-  0%, 100% { 
-    box-shadow: 0 0 15px var(--glow-soft);
-  }
-  50% { 
-    box-shadow: 0 0 30px var(--glow-primary), 0 0 15px var(--accent-lavender);
-  }
-}
-
-@keyframes orbRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .chat-header-orb-inner {
@@ -875,38 +792,16 @@ body::after {
   background: var(--gradient-button);
   box-shadow: 0 0 15px var(--glow-primary);
   animation: orbPulse 3s ease-in-out infinite;
-  position: relative;
-}
-
-.chat-header-orb-inner::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-lavender) 0%, transparent 70%);
-  animation: innerGlow 2s ease-in-out infinite;
-  opacity: 0;
-}
-
-@keyframes innerGlow {
-  0%, 100% { 
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  50% { 
-    opacity: 0.6;
-    transform: scale(1.3);
-  }
 }
 
 @keyframes orbFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  0%, 100% { transform: translateY(0) translateZ(0); }
+  50% { transform: translateY(-3px) translateZ(0); }
 }
 
 @keyframes orbPulse {
-  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 15px var(--glow-primary); }
-  50% { transform: scale(1.2); opacity: 0.9; box-shadow: 0 0 25px var(--glow-primary); }
+  0%, 100% { transform: scale(1) translateZ(0); opacity: 1; }
+  50% { transform: scale(1.15) translateZ(0); opacity: 0.8; }
 }
 
 .chat-header-name {
@@ -1067,7 +962,7 @@ body::after {
 .hero-card-dream:hover {
   background: var(--glass-3);
   border-color: var(--border-glow);
-  transform: translateY(-6px) scale(1.02);
+  transform: translateY(-6px) scale(1.02) translateZ(0);
   box-shadow: 0 12px 40px var(--glow-soft), var(--shadow-md);
   color: var(--text-primary);
 }
@@ -1077,8 +972,8 @@ body::after {
 }
 
 .hero-card-dream:active {
-  transform: translateY(-2px) scale(0.98);
-  transition: all 0.1s var(--ease-smooth);
+  transform: translateY(-2px) scale(0.98) translateZ(0);
+  transition: all 0.1s ease-out;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1123,16 +1018,6 @@ body::after {
   border: 1px solid var(--border-glow);
   color: var(--accent-lavender);
   box-shadow: 0 0 15px var(--glow-soft);
-  animation: avatarGlow 3s ease-in-out infinite;
-}
-
-@keyframes avatarGlow {
-  0%, 100% { 
-    box-shadow: 0 0 15px var(--glow-soft);
-  }
-  50% { 
-    box-shadow: 0 0 25px var(--glow-soft), 0 0 10px var(--accent-lavender);
-  }
 }
 
 .text-body-dream {
@@ -1202,7 +1087,7 @@ body::after {
 .dream-input-wrapper:focus-within {
   border-color: var(--border-focus);
   box-shadow: 0 0 30px var(--glow-soft), var(--shadow-md);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   background: var(--glass-3);
 }
 
@@ -1275,19 +1160,13 @@ body::after {
 }
 
 .dream-send:hover:not(:disabled) {
-  transform: scale(1.1) rotate(15deg);
-  box-shadow: 0 6px 30px var(--glow-primary), 0 0 0 0 rgba(180, 160, 255, 0.5);
-  animation: sendPulse 1.5s infinite;
-}
-
-@keyframes sendPulse {
-  0% { box-shadow: 0 6px 30px var(--glow-primary), 0 0 0 0 rgba(180, 160, 255, 0.5); }
-  70% { box-shadow: 0 6px 30px var(--glow-primary), 0 0 0 20px rgba(180, 160, 255, 0); }
-  100% { box-shadow: 0 6px 30px var(--glow-primary), 0 0 0 0 rgba(180, 160, 255, 0); }
+  transform: scale(1.1) rotate(12deg) translateZ(0);
+  box-shadow: 0 6px 30px var(--glow-primary);
 }
 
 .dream-send:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: scale(0.95) rotate(6deg) translateZ(0);
+  transition: all 0.1s ease-out;
 }
 
 .dream-send:disabled {
@@ -1989,28 +1868,19 @@ body::after {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   WELLNESS TOOLKIT - COMPREHENSIVE MENTAL HEALTH FEATURES
+   FLOATING FEATURES - BREATHING EXERCISE
 ═══════════════════════════════════════════════════════════════════════════ */
 
-.wellness-toolkit {
+.breathing-widget {
   position: fixed;
-  bottom: 24px;
+  bottom: 100px;
   right: 24px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: toolkitSlide 0.6s var(--ease-glass) forwards;
+  z-index: 50;
 }
 
-@keyframes toolkitSlide {
-  from { opacity: 0; transform: translateX(60px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.wellness-trigger {
-  width: 54px;
-  height: 54px;
+.breathing-trigger {
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: var(--glass-3);
   backdrop-filter: blur(20px);
@@ -2019,325 +1889,42 @@ body::after {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-glow), var(--shadow-md);
   transition: all var(--duration-fast) var(--ease-glass);
   color: var(--accent-lavender);
-  position: relative;
 }
 
-.wellness-trigger::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, var(--accent-lavender), var(--accent-rose), var(--accent-lavender));
-  opacity: 0;
-  transition: opacity var(--duration-fast);
-  z-index: -1;
-  animation: spin 3s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.wellness-trigger:hover {
+.breathing-trigger:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 30px var(--glow-soft), 0 0 20px var(--accent-lavender);
-  border-color: var(--border-focus);
+  box-shadow: var(--shadow-glow), var(--shadow-lg);
 }
 
-.wellness-trigger:hover::before {
-  opacity: 0.3;
-}
-
-.wellness-trigger.crisis-btn {
-  background: linear-gradient(135deg, rgba(255, 158, 184, 0.15), rgba(255, 181, 158, 0.15));
-  border-color: var(--accent-rose);
-  color: var(--accent-rose);
-  animation: crisisPulse 2s ease-in-out infinite;
-}
-
-@keyframes crisisPulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
-  50% { box-shadow: 0 4px 30px rgba(255, 158, 184, 0.4), 0 0 20px var(--accent-rose); }
-}
-
-/* Wellness Panels */
-.wellness-panel {
-  position: fixed;
-  bottom: 24px;
-  right: 100px;
-  width: 340px;
-  max-width: calc(100vw - 140px);
+.breathing-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 280px;
   background: var(--glass-3);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border: 1px solid var(--border-glow);
   border-radius: 24px;
   padding: 24px;
-  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.5), 0 0 30px var(--glow-soft);
-  animation: panelSlideIn 0.4s var(--ease-glass) forwards;
-  z-index: 99;
+  box-shadow: var(--shadow-glow), var(--shadow-lg);
+  animation: panelSlide 0.3s var(--ease-glass) forwards;
 }
 
-@keyframes panelSlideIn {
-  from { opacity: 0; transform: translateX(20px) scale(0.95); }
-  to { opacity: 1; transform: translateX(0) scale(1); }
+@keyframes panelSlide {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.panel-title {
-  font-size: 18px;
+.breathing-title {
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.panel-close {
-  background: var(--glass-2);
-  border: 1px solid var(--border-glass);
-  color: var(--text-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-
-.panel-close:hover {
-  background: var(--glass-hover);
-  color: var(--text-primary);
-  transform: rotate(90deg);
-}
-
-/* Enhanced Breathing Panel */
-.breathing-panel-enhanced .breathing-circle {
-  width: 140px;
-  height: 140px;
-  margin: 20px auto;
-}
-
-.pattern-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.pattern-btn {
-  background: var(--glass-2);
-  border: 1px solid var(--border-glass);
-  padding: 10px 14px;
-  border-radius: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all var(--duration-fast);
-  text-align: left;
-}
-
-.pattern-btn:hover {
-  background: var(--glass-hover);
-  border-color: var(--border-glow);
-  transform: translateY(-2px);
-}
-
-.pattern-btn.active {
-  background: var(--glass-active);
-  border-color: var(--accent-lavender);
-  color: var(--text-primary);
-  box-shadow: 0 0 20px var(--glow-soft);
-}
-
-/* Mood Tracker */
-.mood-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.mood-btn {
-  background: var(--glass-2);
-  border: 2px solid var(--border-glass);
-  padding: 14px 8px;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-glass);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.mood-btn:hover {
-  background: var(--glass-hover);
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.mood-emoji {
-  font-size: 28px;
-  line-height: 1;
-}
-
-.mood-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.mood-history {
-  padding: 16px;
-  background: var(--glass-2);
-  border-radius: 14px;
-  border: 1px solid var(--border-glass);
-}
-
-.mood-timeline {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.mood-dot {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--border-glass);
-  transition: all var(--duration-fast);
-}
-
-.mood-dot:hover {
-  transform: scale(1.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Crisis Support */
-.crisis-panel {
-  width: 380px;
-  max-width: calc(100vw - 140px);
-}
-
-.crisis-resources {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.crisis-resource-card {
-  background: var(--glass-2);
-  border: 1px solid var(--border-glass);
-  padding: 14px 16px;
-  border-radius: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  transition: all var(--duration-fast) var(--ease-glass);
-  cursor: pointer;
-}
-
-.crisis-resource-card:hover {
-  background: var(--glass-hover);
-  border-color: var(--accent-rose);
-  transform: translateX(-4px);
-  box-shadow: 0 4px 16px rgba(255, 158, 184, 0.2);
-}
-
-/* Gratitude Journal */
-.gratitude-input {
-  width: 100%;
-  background: var(--glass-2);
-  border: 1px solid var(--border-glass);
-  padding: 14px 16px;
-  border-radius: 14px;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-family: inherit;
-  transition: all var(--duration-fast);
   margin-bottom: 16px;
-}
-
-.gratitude-input:focus {
-  outline: none;
-  border-color: var(--accent-lavender);
-  box-shadow: 0 0 20px var(--glow-soft);
-  background: var(--glass-3);
-}
-
-.gratitude-input::placeholder {
-  color: var(--text-muted);
-}
-
-.gratitude-history {
-  padding: 16px;
-  background: var(--glass-2);
-  border-radius: 14px;
-  border: 1px solid var(--border-glass);
-}
-
-.gratitude-entry {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 10px;
-  background: var(--glass-1);
-  border-radius: 10px;
-  color: var(--text-secondary);
-  transition: all var(--duration-fast);
-}
-
-.gratitude-entry:hover {
-  background: var(--glass-hover);
-  color: var(--text-primary);
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .wellness-toolkit {
-    bottom: 20px;
-    right: 16px;
-    gap: 10px;
-  }
-  
-  .wellness-trigger {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .wellness-panel {
-    right: 16px;
-    left: 16px;
-    width: auto;
-    max-width: none;
-    bottom: 90px;
-  }
-  
-  .crisis-panel {
-    width: auto;
-    max-width: none;
-  }
-  
-  .mood-grid {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
-  }
-  
-  .mood-btn {
-    padding: 10px 4px;
-  }
-  
-  .mood-emoji {
-    font-size: 24px;
-  }
-  
-  .mood-label {
-    font-size: 10px;
-  }
+  text-align: center;
 }
 
 .breathing-circle {
@@ -2350,41 +1937,17 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: breathe 12s ease-in-out infinite;
-  box-shadow: 0 0 0 rgba(180, 160, 255, 0.4);
-  position: relative;
-}
-
-.breathing-circle::before {
-  content: '';
-  position: absolute;
-  inset: -20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-lavender) 0%, transparent 70%);
-  opacity: 0;
-  animation: breatheGlow 12s ease-in-out infinite;
+  animation: breathe 8s ease-in-out infinite;
 }
 
 @keyframes breathe {
   0%, 100% { 
-    transform: scale(0.5); 
-    opacity: 0.2;
+    transform: scale(0.6) translateZ(0); 
+    opacity: 0.3; 
   }
   50% { 
-    transform: scale(1.1); 
-    opacity: 0.8;
-    box-shadow: 0 0 60px rgba(180, 160, 255, 0.6);
-  }
-}
-
-@keyframes breatheGlow {
-  0%, 100% { 
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  50% { 
-    opacity: 0.4;
-    transform: scale(1.2);
+    transform: scale(1) translateZ(0); 
+    opacity: 0.7; 
   }
 }
 
@@ -2457,6 +2020,18 @@ body::after {
     right: 12px;
   }
   
+  .breathing-widget {
+    bottom: 90px;
+    right: 16px;
+  }
+  
+  .breathing-panel {
+    right: 0;
+    left: 16px;
+    width: calc(100% - 32px);
+    max-width: 280px;
+  }
+  
   .constellation-header {
     padding: 0 16px;
     height: 58px;
@@ -2482,28 +2057,6 @@ body::after {
   
   .model-badge-dream {
     display: none;
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   STAGGERED ANIMATIONS
-═══════════════════════════════════════════════════════════════════════════ */
-
-.hero-card-dream {
-  animation: cardFadeIn 0.6s var(--ease-glass) forwards;
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-.hero-card-dream:nth-child(1) { animation-delay: 0.1s; }
-.hero-card-dream:nth-child(2) { animation-delay: 0.2s; }
-.hero-card-dream:nth-child(3) { animation-delay: 0.3s; }
-.hero-card-dream:nth-child(4) { animation-delay: 0.4s; }
-
-@keyframes cardFadeIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
