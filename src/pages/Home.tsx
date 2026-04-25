@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle, Wind } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import { db } from "../firebase";
@@ -46,7 +48,7 @@ export function Home() {
   const [currentAffirmation, setCurrentAffirmation] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
   const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
-  
+
   const [screen, setScreen] = useState<"welcome" | "chat">(() => {
     if (typeof window !== "undefined" && localStorage.getItem("dreem_history")) return "chat";
     return "welcome";
@@ -72,16 +74,16 @@ export function Home() {
   // Breathing exercise timer
   useEffect(() => {
     if (!showBreathing) return;
-    
+
     const phases = ['inhale', 'hold', 'exhale'] as const;
     const durations = { inhale: 4000, hold: 4000, exhale: 4000 };
     let phaseIndex = 0;
-    
+
     const cycle = () => {
       setBreathPhase(phases[phaseIndex]);
       phaseIndex = (phaseIndex + 1) % 3;
     };
-    
+
     cycle();
     const interval = setInterval(cycle, durations[phases[phaseIndex % 3]]);
     return () => clearInterval(interval);
@@ -91,13 +93,13 @@ export function Home() {
   useEffect(() => {
     const lastShown = localStorage.getItem("dreem_affirmation_date");
     const today = new Date().toDateString();
-    
+
     if (lastShown !== today) {
       const randomAffirmation = AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)];
       setCurrentAffirmation(randomAffirmation);
       setShowAffirmation(true);
       localStorage.setItem("dreem_affirmation_date", today);
-      
+
       setTimeout(() => setShowAffirmation(false), 5000);
     }
   }, []);
@@ -262,7 +264,7 @@ export function Home() {
 
       if (reader) {
         setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
-        
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -339,18 +341,32 @@ export function Home() {
   };
 
   return (
-    <div className="app-container">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+      className="app-container"
+    >
+      <div className="noise-overlay" />
       <ThemeToggle />
       
-      {/* Daily affirmation toast */}
-      {showAffirmation && (
-        <div className="affirmation-toast">
-          <div className="affirmation-icon">
-            <Heart size={18} style={{ color: 'white' }} />
-          </div>
-          <p className="affirmation-text">{currentAffirmation}</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {/* Daily affirmation toast */}
+        {showAffirmation && (
+          <motion.div
+            className="affirmation-toast bento-card"
+            initial={{ y: -50, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -50, opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
+            <div className="affirmation-icon">
+              <Heart size={18} style={{ color: 'white' }} />
+            </div>
+            <p className="affirmation-text">{currentAffirmation}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Background clouds */}
       <div className="bg-scene" aria-hidden="true">
@@ -364,27 +380,37 @@ export function Home() {
 
       {/* Breathing Exercise Widget */}
       <div className="breathing-widget">
-        <button 
-          className="breathing-trigger" 
+        <button
+          className="breathing-trigger"
           onClick={() => setShowBreathing(!showBreathing)}
           title="Breathing exercise"
         >
           <Wind size={24} />
         </button>
-        
+
         {showBreathing && (
           <div className="breathing-panel">
             <h3 className="breathing-title">Take a breath</h3>
-            <div className="breathing-circle">
-              <span style={{ 
-                color: 'white', 
-                fontWeight: 600, 
+            <motion.div
+              className="breathing-circle"
+              initial={{ scale: 0.6, opacity: 0.3 }}
+              animate={{ scale: [0.6, 1, 0.6], opacity: [0.3, 0.7, 0.3] }}
+              transition={{
+                duration: 8,
+                ease: "easeInOut",
+                repeat: Infinity,
+                repeatType: "loop",
+              }}
+            >
+              <span style={{
+                color: 'white',
+                fontWeight: 600,
                 fontSize: '14px',
                 textTransform: 'capitalize'
               }}>
                 {breathPhase === 'inhale' ? 'Breathe in' : breathPhase === 'hold' ? 'Hold' : 'Breathe out'}
               </span>
-            </div>
+            </motion.div>
             <p className="breathing-instruction">
               Follow the circle. 4 seconds in, 4 seconds hold, 4 seconds out.
             </p>
@@ -393,80 +419,69 @@ export function Home() {
       </div>
 
       {screen === "welcome" ? (
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100vh', 
-          width: '100vw', 
-          textAlign: 'center', 
-          position: 'relative', 
-          zIndex: 10, 
-          padding: '2rem' 
-        }}>
-          <div style={{ 
-            width: '90px', 
-            height: '90px', 
-            borderRadius: '50%', 
-            background: 'var(--glass-3)', 
+        <div className="flex flex-col items-center justify-center h-screen w-screen text-center relative z-10 p-8">
+          <div style={{
+            width: '90px',
+            height: '90px',
+            borderRadius: '50%',
+            background: 'var(--glass-3)',
             backdropFilter: 'blur(20px)',
-            border: '1px solid var(--border-glow)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            marginBottom: '2rem', 
-            boxShadow: 'var(--shadow-glow)', 
-            animation: 'orbFloat 6s ease-in-out infinite' 
+            border: '1px solid var(--border-glow)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '2rem',
+            boxShadow: 'var(--shadow-glow)',
+            animation: 'orbFloat 6s ease-in-out infinite'
           }}>
-            <div style={{ 
-              width: '36px', 
-              height: '36px', 
-              borderRadius: '50%', 
-              background: 'var(--gradient-button)', 
-              boxShadow: '0 0 20px var(--glow-primary)' 
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: 'var(--gradient-button)',
+              boxShadow: '0 0 20px var(--glow-primary)'
             }} />
           </div>
-          
-          <h1 style={{ 
-            fontSize: 'clamp(3rem, 10vw, 5rem)', 
-            fontWeight: 700, 
-            background: 'var(--gradient-text)', 
-            backgroundSize: '300% 300%', 
-            WebkitBackgroundClip: 'text', 
-            WebkitTextFillColor: 'transparent', 
-            backgroundClip: 'text', 
-            marginBottom: '1rem', 
-            animation: 'gradientShift 8s ease-in-out infinite', 
-            letterSpacing: '-0.03em' 
+
+          <h1 style={{
+            fontSize: 'clamp(3rem, 10vw, 5rem)',
+            fontWeight: 700,
+            background: 'var(--gradient-text)',
+            backgroundSize: '300% 300%',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '1rem',
+            animation: 'gradientShift 8s ease-in-out infinite',
+            letterSpacing: '-0.03em'
           }}>
             Lumina
           </h1>
-          
-          <p style={{ 
-            fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', 
-            color: 'var(--text-secondary)', 
-            maxWidth: '440px', 
-            lineHeight: 1.7, 
-            marginBottom: '2.5rem' 
+
+          <p style={{
+            fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
+            color: 'var(--text-secondary)',
+            maxWidth: '440px',
+            lineHeight: 1.7,
+            marginBottom: '2.5rem'
           }}>
             A safe space to explore your thoughts, find calm, and nurture your wellbeing.
           </p>
-          
-          <button 
-            onClick={() => setScreen("chat")} 
-            style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '0.75rem', 
-              padding: '1rem 2.5rem', 
-              borderRadius: '50px', 
-              background: 'var(--gradient-button)', 
-              color: 'var(--text-inverse)', 
-              fontWeight: 600, 
-              fontSize: '1rem', 
-              border: 'none', 
-              cursor: 'pointer', 
+
+          <button
+            onClick={() => setScreen("chat")}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem 2.5rem',
+              borderRadius: '50px',
+              background: 'var(--gradient-button)',
+              color: 'var(--text-inverse)',
+              fontWeight: 600,
+              fontSize: '1rem',
+              border: 'none',
+              cursor: 'pointer',
               boxShadow: '0 4px 24px var(--glow-primary)',
               transition: 'all 0.3s var(--ease-glass)'
             }}
@@ -489,19 +504,19 @@ export function Home() {
               <Plus size={18} /> New Conversation
             </button>
 
-            <Link href="/constellation" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '12px', 
-              padding: '14px 18px', 
-              borderRadius: '14px', 
-              background: 'var(--glass-2)', 
-              border: '1px solid var(--border-glass)', 
-              color: 'var(--text-secondary)', 
-              textDecoration: 'none', 
-              marginBottom: '20px', 
-              transition: 'all 0.2s var(--ease-glass)', 
-              fontSize: '14px' 
+            <Link href="/constellation" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '14px 18px',
+              borderRadius: '14px',
+              background: 'var(--glass-2)',
+              border: '1px solid var(--border-glass)',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              marginBottom: '20px',
+              transition: 'all 0.2s var(--ease-glass)',
+              fontSize: '14px'
             }}>
               <Moon size={16} /> Constellation
             </Link>
@@ -510,9 +525,9 @@ export function Home() {
               <p className="sidebar-label">Recent</p>
               {history.length === 0 && <div className="history-empty">No conversations yet.</div>}
               {history.map(chat => (
-                <div 
-                  key={chat.id} 
-                  className={`history-item-dream ${activeId === chat.id ? "active" : ""}`} 
+                <div
+                  key={chat.id}
+                  className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
                   onClick={() => { setActiveId(chat.id); setMsgs(chat.msgs); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}
                 >
                   <MessageCircle size={14} />
@@ -529,7 +544,7 @@ export function Home() {
                   </button>
                 </SignInButton>
               </SignedOut>
-              
+
               <SignedIn>
                 <div className="clickable-footer">
                   <div className="user-profile-mini">
@@ -554,18 +569,18 @@ export function Home() {
               <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                 <Menu size={22} />
               </button>
-              
+
               <div className="logo-section">
                 <div className="chat-header-orb">
                   <div className="chat-header-orb-inner" />
                 </div>
                 <span className="chat-header-name">Lumina</span>
               </div>
-              
+
               <span className="model-badge-dream">{MODEL_TAG}</span>
-              
-              <button 
-                onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }} 
+
+              <button
+                onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }}
                 title={ttsEnabled ? "Mute voice" : "Enable voice"}
                 className="icon-btn-clear"
                 style={{ color: ttsEnabled ? 'var(--accent-lavender)' : undefined }}
@@ -581,7 +596,7 @@ export function Home() {
                   <p className="hero-sub">
                     This is your space. Share what&apos;s on your mind, or choose a starting point below.
                   </p>
-                  
+
                   <div className="hero-grid">
                     {PROMPTS.map((p, i) => (
                       <button key={i} className="hero-card-dream" onClick={() => send(p)}>
@@ -598,13 +613,13 @@ export function Home() {
                     </div>
                     <div className="text-body-dream">
                       {m.imagePreview && (
-                        <img 
-                          src={m.imagePreview} 
-                          alt="shared" 
-                          style={{ maxWidth: '220px', borderRadius: '14px', marginBottom: '12px', display: 'block', border: '1px solid var(--border-glass)' }} 
+                        <img
+                          src={m.imagePreview}
+                          alt="shared"
+                          style={{ maxWidth: '220px', borderRadius: '14px', marginBottom: '12px', display: 'block', border: '1px solid var(--border-glass)' }}
                         />
                       )}
-                      
+
                       {m.streaming && !m.content ? (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '4px 0' }}>
                           <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite' }} />
@@ -639,44 +654,44 @@ export function Home() {
               )}
 
               <div className="dream-input-wrapper">
-                <input 
-                  ref={fileInputRef} 
-                  type="file" 
-                  accept="image/*" 
-                  style={{ display: 'none' }} 
-                  onChange={handleImageSelect} 
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleImageSelect}
                 />
-                
-                <button 
-                  className="voice-btn" 
-                  onClick={() => fileInputRef.current?.click()} 
-                  title="Share an image" 
+
+                <button
+                  className="voice-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Share an image"
                   disabled={loading}
                   style={{ color: pendingImage ? 'var(--accent-lavender)' : undefined }}
                 >
                   <ImagePlus size={20} />
                 </button>
-                
-                <button 
-                  className={`voice-btn ${isRecording ? 'recording' : ''}`} 
-                  onClick={isRecording ? stopRecording : startRecording} 
-                  disabled={loading || isTranscribing} 
+
+                <button
+                  className={`voice-btn ${isRecording ? 'recording' : ''}`}
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={loading || isTranscribing}
                   title={isRecording ? "Stop recording" : "Use your voice"}
                 >
                   {isTranscribing ? <Loader2 size={20} className="animate-spin" /> : isRecording ? <MicOff size={20} /> : <Mic size={20} />}
                 </button>
-                
-                <input 
-                  className="dream-input" 
-                  value={input} 
-                  onChange={(e) => setInput(e.target.value)} 
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()} 
-                  placeholder={isRecording ? "Listening..." : isTranscribing ? "Processing..." : "What's on your mind?"} 
+
+                <input
+                  className="dream-input"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                  placeholder={isRecording ? "Listening..." : isTranscribing ? "Processing..." : "What's on your mind?"}
                 />
-                
-                <button 
-                  className="dream-send" 
-                  onClick={handleSend} 
+
+                <button
+                  className="dream-send"
+                  onClick={handleSend}
                   disabled={loading || (!input.trim() && !pendingImage)}
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
