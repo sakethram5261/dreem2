@@ -372,10 +372,12 @@ export function Constellation() {
       
       {/* Background */}
       <div className="bg-scene" aria-hidden="true">
-        <div className="bg-orb bg-orb-1" />
-        <div className="bg-orb bg-orb-2" />
-        <div className="bg-orb bg-orb-3" />
-        <div className="bg-aurora" />
+        <div className="bg-cloud bg-cloud-1" />
+        <div className="bg-cloud bg-cloud-2" />
+        <div className="bg-cloud bg-cloud-3" />
+        <div className="bg-cloud bg-cloud-4" />
+        <div className="bg-refraction" />
+        <div className="bg-noise" />
       </div>
 
       <StarField />

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle } from "lucide-react";
+import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle, Wind } from "lucide-react";
 import { Link } from "wouter";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import { db } from "../firebase";
@@ -9,7 +9,6 @@ import { useTheme } from "../contexts/ThemeContext";
 
 const MODEL_TAG = "llama-3.3-70b";
 
-// Warm, comforting prompts that feel safe
 const PROMPTS = [
   "I need a moment to breathe and feel grounded...",
   "Help me find some peace in this moment",
@@ -17,7 +16,6 @@ const PROMPTS = [
   "Guide me through a calming exercise",
 ];
 
-// Daily affirmations for a gentle start
 const AFFIRMATIONS = [
   "You are exactly where you need to be.",
   "Your feelings are valid and worthy of attention.",
@@ -40,23 +38,14 @@ interface ChatSession {
   msgs: Msg[];
 }
 
-// Gentle floating particles
-const PARTICLES = Array.from({ length: 14 }, (_, i) => {
-  const seed = i * 137.508;
-  return {
-    size: ((seed % 3) + 2).toFixed(1),
-    left: ((seed * 1.618) % 100).toFixed(1),
-    delay: (-(seed % 10)).toFixed(1),
-    duration: ((seed % 8) + 12).toFixed(1),
-  };
-});
-
 export function Home() {
   const { user } = useUser();
   const { theme } = useTheme();
   const [credits, setCredits] = useState<number | null>(null);
   const [showAffirmation, setShowAffirmation] = useState(false);
   const [currentAffirmation, setCurrentAffirmation] = useState("");
+  const [showBreathing, setShowBreathing] = useState(false);
+  const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
   
   const [screen, setScreen] = useState<"welcome" | "chat">(() => {
     if (typeof window !== "undefined" && localStorage.getItem("dreem_history")) return "chat";
@@ -70,18 +59,33 @@ export function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Voice state
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Image state
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Breathing exercise timer
+  useEffect(() => {
+    if (!showBreathing) return;
+    
+    const phases = ['inhale', 'hold', 'exhale'] as const;
+    const durations = { inhale: 4000, hold: 4000, exhale: 4000 };
+    let phaseIndex = 0;
+    
+    const cycle = () => {
+      setBreathPhase(phases[phaseIndex]);
+      phaseIndex = (phaseIndex + 1) % 3;
+    };
+    
+    cycle();
+    const interval = setInterval(cycle, durations[phases[phaseIndex % 3]]);
+    return () => clearInterval(interval);
+  }, [showBreathing]);
 
   // Show affirmation on first load
   useEffect(() => {
@@ -273,31 +277,25 @@ export function Home() {
 
             try {
               const parsed = JSON.parse(jsonString);
-              const content = parsed.choices[0]?.delta?.content || "";
+              const content = parsed.choices?.[0]?.delta?.content || "";
 
               if (content) {
-                for (let i = 0; i < content.length; i++) {
-                  accumulated += content[i];
-
-                  setMsgs(prev => {
-                    const updated = [...prev];
-                    if (updated[updated.length - 1]) {
-                      updated[updated.length - 1] = {
-                        ...updated[updated.length - 1],
-                        content: accumulated
-                      };
-                    }
-                    return updated;
-                  });
-
-                  await new Promise(resolve => setTimeout(resolve, 18));
-                }
+                accumulated += content;
+                setMsgs(prev => {
+                  const updated = [...prev];
+                  if (updated[updated.length - 1]) {
+                    updated[updated.length - 1] = {
+                      ...updated[updated.length - 1],
+                      content: accumulated
+                    };
+                  }
+                  return updated;
+                });
               }
             } catch { continue; }
           }
         }
 
-        // Speak the response if TTS is enabled
         if (accumulated) speak(accumulated);
       }
 
@@ -313,6 +311,7 @@ export function Home() {
 
     } catch (err) {
       console.error("Error:", err);
+      setMsgs(prev => [...prev.slice(0, -1), { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }]);
     } finally {
       setLoading(false);
       setMsgs(prev => {
@@ -347,31 +346,110 @@ export function Home() {
       {showAffirmation && (
         <div className="affirmation-toast">
           <div className="affirmation-icon">
-            <Heart size={20} style={{ color: 'var(--accent-secondary)' }} />
+            <Heart size={18} style={{ color: 'white' }} />
           </div>
           <p className="affirmation-text">{currentAffirmation}</p>
         </div>
       )}
 
-      {/* Background scene */}
+      {/* Background clouds */}
       <div className="bg-scene" aria-hidden="true">
-        <div className="bg-orb bg-orb-1"></div>
-        <div className="bg-orb bg-orb-2"></div>
-        <div className="bg-orb bg-orb-3"></div>
-        <div className="bg-aurora"></div>
+        <div className="bg-cloud bg-cloud-1" />
+        <div className="bg-cloud bg-cloud-2" />
+        <div className="bg-cloud bg-cloud-3" />
+        <div className="bg-cloud bg-cloud-4" />
+        <div className="bg-refraction" />
+        <div className="bg-noise" />
+      </div>
+
+      {/* Breathing Exercise Widget */}
+      <div className="breathing-widget">
+        <button 
+          className="breathing-trigger" 
+          onClick={() => setShowBreathing(!showBreathing)}
+          title="Breathing exercise"
+        >
+          <Wind size={24} />
+        </button>
+        
+        {showBreathing && (
+          <div className="breathing-panel">
+            <h3 className="breathing-title">Take a breath</h3>
+            <div className="breathing-circle">
+              <span style={{ 
+                color: 'white', 
+                fontWeight: 600, 
+                fontSize: '14px',
+                textTransform: 'capitalize'
+              }}>
+                {breathPhase === 'inhale' ? 'Breathe in' : breathPhase === 'hold' ? 'Hold' : 'Breathe out'}
+              </span>
+            </div>
+            <p className="breathing-instruction">
+              Follow the circle. 4 seconds in, 4 seconds hold, 4 seconds out.
+            </p>
+          </div>
+        )}
       </div>
 
       {screen === "welcome" ? (
-        <div className="welcome-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', textAlign: 'center', position: 'relative', zIndex: 10, padding: '2rem' }}>
-          <div className="logo-orb" style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem', boxShadow: 'var(--shadow-glow)', animation: 'orb-breathe 4s ease-in-out infinite' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--gradient-button)', boxShadow: '0 0 20px var(--accent-glow)' }}></div>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '100vh', 
+          width: '100vw', 
+          textAlign: 'center', 
+          position: 'relative', 
+          zIndex: 10, 
+          padding: '2rem' 
+        }}>
+          <div style={{ 
+            width: '90px', 
+            height: '90px', 
+            borderRadius: '50%', 
+            background: 'var(--glass-3)', 
+            backdropFilter: 'blur(20px)',
+            border: '1px solid var(--border-glow)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            marginBottom: '2rem', 
+            boxShadow: 'var(--shadow-glow)', 
+            animation: 'orbFloat 6s ease-in-out infinite' 
+          }}>
+            <div style={{ 
+              width: '36px', 
+              height: '36px', 
+              borderRadius: '50%', 
+              background: 'var(--gradient-button)', 
+              boxShadow: '0 0 20px var(--glow-primary)' 
+            }} />
           </div>
           
-          <h1 style={{ fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 700, background: 'var(--gradient-hero)', backgroundSize: '300% 300%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '1rem', animation: 'shimmer 6s ease-in-out infinite', letterSpacing: '-0.02em' }}>
+          <h1 style={{ 
+            fontSize: 'clamp(3rem, 10vw, 5rem)', 
+            fontWeight: 700, 
+            background: 'var(--gradient-text)', 
+            backgroundSize: '300% 300%', 
+            WebkitBackgroundClip: 'text', 
+            WebkitTextFillColor: 'transparent', 
+            backgroundClip: 'text', 
+            marginBottom: '1rem', 
+            animation: 'gradientShift 8s ease-in-out infinite', 
+            letterSpacing: '-0.03em' 
+          }}>
             dreem
           </h1>
           
-          <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', color: 'var(--text-secondary)', maxWidth: '480px', lineHeight: 1.7, marginBottom: '2.5rem' }}>
+          <p style={{ 
+            fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', 
+            color: 'var(--text-secondary)', 
+            maxWidth: '440px', 
+            lineHeight: 1.7, 
+            marginBottom: '2.5rem' 
+          }}>
             A safe space to explore your thoughts, find calm, and nurture your wellbeing.
           </p>
           
@@ -384,13 +462,13 @@ export function Home() {
               padding: '1rem 2.5rem', 
               borderRadius: '50px', 
               background: 'var(--gradient-button)', 
-              color: 'var(--bg-primary)', 
-              fontWeight: 700, 
+              color: 'var(--text-inverse)', 
+              fontWeight: 600, 
               fontSize: '1rem', 
               border: 'none', 
               cursor: 'pointer', 
-              boxShadow: '0 4px 24px var(--accent-glow)',
-              transition: 'all 0.3s ease'
+              boxShadow: '0 4px 24px var(--glow-primary)',
+              transition: 'all 0.3s var(--ease-glass)'
             }}
           >
             Begin Your Journey <Sparkles size={18} />
@@ -411,13 +489,26 @@ export function Home() {
               <Plus size={18} /> New Conversation
             </button>
 
-            <Link href="/constellation" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '20px', transition: 'all 0.25s ease', fontSize: '14px' }}>
+            <Link href="/constellation" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px', 
+              padding: '14px 18px', 
+              borderRadius: '14px', 
+              background: 'var(--glass-2)', 
+              border: '1px solid var(--border-glass)', 
+              color: 'var(--text-secondary)', 
+              textDecoration: 'none', 
+              marginBottom: '20px', 
+              transition: 'all 0.2s var(--ease-glass)', 
+              fontSize: '14px' 
+            }}>
               <Moon size={16} /> Constellation
             </Link>
 
             <div className="sidebar-section">
-              <p className="sidebar-label">Recent Conversations</p>
-              {history.length === 0 && <div className="history-empty">No conversations yet. Start one above.</div>}
+              <p className="sidebar-label">Recent</p>
+              {history.length === 0 && <div className="history-empty">No conversations yet.</div>}
               {history.map(chat => (
                 <div 
                   key={chat.id} 
@@ -434,7 +525,7 @@ export function Home() {
               <SignedOut>
                 <SignInButton mode="modal">
                   <button className="new-chat-btn-dream" style={{ width: '100%', justifyContent: 'center' }}>
-                    Sign In to Save Progress
+                    Sign In to Save
                   </button>
                 </SignInButton>
               </SignedOut>
@@ -445,7 +536,7 @@ export function Home() {
                     <UserButton afterSignOutUrl="/" />
                     <div className="user-info">
                       <p className="u-name">{user?.firstName || "Friend"}</p>
-                      <p className="u-status">{credits ?? 0} sessions remaining</p>
+                      <p className="u-status">{credits ?? 0} sessions</p>
                     </div>
                   </div>
                 </div>
@@ -466,7 +557,7 @@ export function Home() {
               
               <div className="logo-section">
                 <div className="chat-header-orb">
-                  <div className="chat-header-orb-inner"></div>
+                  <div className="chat-header-orb-inner" />
                 </div>
                 <span className="chat-header-name">dreem</span>
               </div>
@@ -477,7 +568,7 @@ export function Home() {
                 onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }} 
                 title={ttsEnabled ? "Mute voice" : "Enable voice"}
                 className="icon-btn-clear"
-                style={{ color: ttsEnabled ? 'var(--accent-primary)' : 'var(--text-muted)' }}
+                style={{ color: ttsEnabled ? 'var(--accent-lavender)' : undefined }}
               >
                 {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
               </button>
@@ -488,7 +579,7 @@ export function Home() {
                 <div className="dream-welcome">
                   <h2 className="hero-text-dream">{getGreeting()}, {user?.firstName || "Friend"}</h2>
                   <p className="hero-sub">
-                    This is your space. Share what is on your mind, or choose a starting point below.
+                    This is your space. Share what&apos;s on your mind, or choose a starting point below.
                   </p>
                   
                   <div className="hero-grid">
@@ -510,20 +601,20 @@ export function Home() {
                         <img 
                           src={m.imagePreview} 
                           alt="shared" 
-                          style={{ maxWidth: '240px', borderRadius: '12px', marginBottom: '12px', display: 'block', border: '1px solid var(--border-subtle)' }} 
+                          style={{ maxWidth: '220px', borderRadius: '14px', marginBottom: '12px', display: 'block', border: '1px solid var(--border-glass)' }} 
                         />
                       )}
                       
                       {m.streaming && !m.content ? (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '4px 0' }}>
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'gentlePulse 1.5s ease-in-out infinite' }}></span>
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'gentlePulse 1.5s ease-in-out infinite', animationDelay: '0.2s' }}></span>
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'gentlePulse 1.5s ease-in-out infinite', animationDelay: '0.4s' }}></span>
+                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite' }} />
+                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite', animationDelay: '0.2s' }} />
+                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite', animationDelay: '0.4s' }} />
                         </div>
                       ) : (
                         <>
                           {getMsgText(m)}
-                          {m.streaming && <span className="stream-cursor"></span>}
+                          {m.streaming && <span className="stream-cursor" />}
                         </>
                       )}
                     </div>
@@ -536,11 +627,14 @@ export function Home() {
             {/* Input area */}
             <div className="dream-input-container">
               {pendingImage && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 16px', marginBottom: '8px' }}>
-                  <img src={pendingImage} alt="pending" style={{ height: '52px', borderRadius: '10px', border: '1px solid var(--border-accent)' }} />
-                  <button onClick={() => setPendingImage(null)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-                    <X size={16} />
-                  </button>
+                <div className="image-preview-row">
+                  <div className="img-preview-box">
+                    <img src={pendingImage} alt="pending" />
+                    <span>Image ready</span>
+                    <button className="rm-img-btn" onClick={() => setPendingImage(null)}>
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -558,7 +652,7 @@ export function Home() {
                   onClick={() => fileInputRef.current?.click()} 
                   title="Share an image" 
                   disabled={loading}
-                  style={{ color: pendingImage ? 'var(--accent-primary)' : undefined }}
+                  style={{ color: pendingImage ? 'var(--accent-lavender)' : undefined }}
                 >
                   <ImagePlus size={20} />
                 </button>
@@ -577,7 +671,7 @@ export function Home() {
                   value={input} 
                   onChange={(e) => setInput(e.target.value)} 
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()} 
-                  placeholder={isRecording ? "Listening to you..." : isTranscribing ? "Processing your words..." : "What's on your mind?"} 
+                  placeholder={isRecording ? "Listening..." : isTranscribing ? "Processing..." : "What's on your mind?"} 
                 />
                 
                 <button 
