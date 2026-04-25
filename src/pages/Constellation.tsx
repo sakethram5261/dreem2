@@ -84,56 +84,32 @@ function StarField() {
     let t = 0, nova = 0;
     
     const draw = () => {
+      // Only clear what's needed
       ctx.clearRect(0, 0, W, H);
       t += 0.012;
       
+      // Nova effect - only during intro
       if (nova < 1) {
-        nova = Math.min(1, nova + 0.01);
+        nova = Math.min(1, nova + 0.015);
         const r = nova * Math.max(W, H) * 0.6;
         const a = (1 - nova) * 0.1;
         const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, r);
         g.addColorStop(0, `rgba(196, 181, 253, ${a})`);
         g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.beginPath();
-        ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
         ctx.fillStyle = g;
-        ctx.fill();
+        ctx.fillRect(0, 0, W, H);
       }
       
-      for (const s of stars) {
-        if (s.lerp < 1) s.lerp = Math.min(1, s.lerp + s.ls);
-        const e = s.lerp < 1 ? 1 - Math.pow(1 - s.lerp, 3) : 1;
-        s.cx = s.sx + (s.x - s.sx) * e;
-        s.cy = s.sy + (s.y - s.sy) * e;
-      }
-      
-      ctx.lineWidth = 0.35;
-      for (const [a, b] of lines) {
-        const p = Math.min(stars[a].lerp, stars[b].lerp);
-        if (p < 0.1) continue;
-        const op = p * (0.02 + 0.012 * Math.sin(t * 0.2 + a));
-        ctx.beginPath();
-        ctx.moveTo(stars[a].cx, stars[a].cy);
-        ctx.lineTo(stars[b].cx, stars[b].cy);
-        ctx.strokeStyle = `${lineColor}${op.toFixed(3)})`;
-        ctx.stroke();
-      }
-      
-      ctx.save();
-      for (const s of stars) {
-        const tw = s.a * (0.4 + 0.6 * Math.sin(t * s.ts * 55 + s.to));
-        const al = tw * s.lerp;
-        if (al < 0.03) continue;
-        if (s.bright && al > 0.2) {
-          ctx.globalAlpha = al * 0.35;
-          ctx.drawImage(glowSprite, s.cx - GS / 2, s.cy - GS / 2);
-        }
-        ctx.globalAlpha = al;
-        ctx.beginPath();
-        ctx.arc(s.cx, s.cy, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = starFill;
-        ctx.fill();
-        if (s.lerp >= 1) {
+      // Batch star position updates
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        if (s.lerp < 1) {
+          s.lerp = Math.min(1, s.lerp + s.ls);
+          const e = 1 - Math.pow(1 - s.lerp, 3);
+          s.cx = s.sx + (s.x - s.sx) * e;
+          s.cy = s.sy + (s.y - s.sy) * e;
+        } else {
+          // Drift
           s.y -= s.drift * 0.14;
           s.cy = s.y;
           if (s.y < -2) {
@@ -146,7 +122,42 @@ function StarField() {
           }
         }
       }
-      ctx.restore();
+      
+      // Draw lines in one pass
+      ctx.lineWidth = 0.35;
+      ctx.beginPath();
+      for (let i = 0; i < lines.length; i++) {
+        const [a, b] = lines[i];
+        const p = Math.min(stars[a].lerp, stars[b].lerp);
+        if (p < 0.1) continue;
+        const op = p * (0.02 + 0.012 * Math.sin(t * 0.2 + a));
+        ctx.strokeStyle = `${lineColor}${op.toFixed(3)})`;
+        ctx.moveTo(stars[a].cx, stars[a].cy);
+        ctx.lineTo(stars[b].cx, stars[b].cy);
+        ctx.stroke();
+        ctx.beginPath();
+      }
+      
+      // Draw stars in batches
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        const tw = s.a * (0.4 + 0.6 * Math.sin(t * s.ts * 55 + s.to));
+        const al = tw * s.lerp;
+        if (al < 0.03) continue;
+        
+        if (s.bright && al > 0.2) {
+          ctx.globalAlpha = al * 0.35;
+          ctx.drawImage(glowSprite, s.cx - GS / 2, s.cy - GS / 2);
+        }
+        
+        ctx.globalAlpha = al;
+        ctx.fillStyle = starFill;
+        ctx.beginPath();
+        ctx.arc(s.cx, s.cy, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      ctx.globalAlpha = 1;
       rafRef.current = requestAnimationFrame(draw);
     };
     
