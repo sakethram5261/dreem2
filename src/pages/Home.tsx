@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle, Wind } from "lucide-react";
+import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle, Wind, Smile, Frown, Meh, Music, LifeBuoy, BookHeart, TrendingUp, Zap } from "lucide-react";
 import { Link } from "wouter";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import { db } from "../firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -22,6 +22,31 @@ const AFFIRMATIONS = [
   "Take all the time you need. There is no rush here.",
   "You deserve moments of peace and gentleness.",
   "Every breath is a new beginning.",
+  "It's okay to not be okay. You're still worthy of love.",
+  "Your struggles don't define you. Your strength does.",
+  "One small step today is enough.",
+];
+
+const MOODS = [
+  { emoji: "😊", label: "Great", value: 5, color: "#9effd4" },
+  { emoji: "🙂", label: "Good", value: 4, color: "#b4a0ff" },
+  { emoji: "😐", label: "Okay", value: 3, color: "#ffb59e" },
+  { emoji: "😔", label: "Low", value: 2, color: "#ff9eb8" },
+  { emoji: "😢", label: "Struggling", value: 1, color: "#c8b8ff" },
+];
+
+const BREATHING_PATTERNS = [
+  { name: "Calm (4-4-4)", inhale: 4, hold: 4, exhale: 4, description: "Gentle box breathing" },
+  { name: "Relax (4-7-8)", inhale: 4, hold: 7, exhale: 8, description: "Deep relaxation" },
+  { name: "Energize (4-4-6)", inhale: 4, hold: 4, exhale: 6, description: "Boost energy" },
+  { name: "Quick (2-2-3)", inhale: 2, hold: 2, exhale: 3, description: "Fast calming" },
+];
+
+const CRISIS_RESOURCES = [
+  { name: "988 Suicide & Crisis Lifeline", number: "988", description: "24/7 support" },
+  { name: "Crisis Text Line", number: "Text HOME to 741741", description: "Free 24/7 text support" },
+  { name: "SAMHSA Helpline", number: "1-800-662-4357", description: "Mental health & substance abuse" },
+  { name: "NAMI Helpline", number: "1-800-950-6264", description: "Mental health information" },
 ];
 
 interface Msg {
@@ -46,6 +71,19 @@ export function Home() {
   const [currentAffirmation, setCurrentAffirmation] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
   const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
+  const [breathPattern, setBreathPattern] = useState(BREATHING_PATTERNS[0]);
+  
+  // New wellness features
+  const [showMoodTracker, setShowMoodTracker] = useState(false);
+  const [showCrisisSupport, setShowCrisisSupport] = useState(false);
+  const [showGratitude, setShowGratitude] = useState(false);
+  const [showSoundscape, setShowSoundscape] = useState(false);
+  const [moodHistory, setMoodHistory] = useState<Array<{date: string; mood: number; note?: string}>>([]);
+  const [gratitudeEntries, setGratitudeEntries] = useState<Array<{date: string; text: string}>>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [soundscapeVolume, setSoundscapeVolume] = useState(0.3);
+  const [activeSoundscape, setActiveSoundscape] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const [screen, setScreen] = useState<"welcome" | "chat">(() => {
     if (typeof window !== "undefined" && localStorage.getItem("dreem_history")) return "chat";
@@ -74,7 +112,11 @@ export function Home() {
     if (!showBreathing) return;
     
     const phases = ['inhale', 'hold', 'exhale'] as const;
-    const durations = { inhale: 4000, hold: 4000, exhale: 4000 };
+    const durations = { 
+      inhale: breathPattern.inhale * 1000, 
+      hold: breathPattern.hold * 1000, 
+      exhale: breathPattern.exhale * 1000 
+    };
     let phaseIndex = 0;
     
     const cycle = () => {
@@ -83,9 +125,13 @@ export function Home() {
     };
     
     cycle();
-    const interval = setInterval(cycle, durations[phases[phaseIndex % 3]]);
+    const interval = setInterval(() => {
+      phaseIndex = (phaseIndex + 1) % 3;
+      setBreathPhase(phases[phaseIndex]);
+    }, durations[phases[phaseIndex]]);
+    
     return () => clearInterval(interval);
-  }, [showBreathing]);
+  }, [showBreathing, breathPattern]);
 
   // Show affirmation on first load
   useEffect(() => {
@@ -352,6 +398,256 @@ export function Home() {
         </div>
       )}
 
+      {/* Wellness Toolkit */}
+      <div className="wellness-toolkit">
+        {/* Breathing Exercise */}
+        <button 
+          className="wellness-trigger" 
+          onClick={() => setShowBreathing(!showBreathing)}
+          title="Breathing exercise"
+          style={{ background: showBreathing ? 'var(--glass-active)' : undefined }}
+        >
+          <Wind size={20} />
+        </button>
+        
+        {/* Mood Tracker */}
+        <button 
+          className="wellness-trigger" 
+          onClick={() => setShowMoodTracker(!showMoodTracker)}
+          title="Track your mood"
+          style={{ background: showMoodTracker ? 'var(--glass-active)' : undefined }}
+        >
+          <Smile size={20} />
+        </button>
+        
+        {/* Crisis Support */}
+        <button 
+          className="wellness-trigger crisis-btn" 
+          onClick={() => setShowCrisisSupport(!showCrisisSupport)}
+          title="Crisis support"
+        >
+          <LifeBuoy size={20} />
+        </button>
+        
+        {/* Gratitude Journal */}
+        <button 
+          className="wellness-trigger" 
+          onClick={() => setShowGratitude(!showGratitude)}
+          title="Gratitude journal"
+          style={{ background: showGratitude ? 'var(--glass-active)' : undefined }}
+        >
+          <Heart size={20} />
+        </button>
+      </div>
+
+      {/* Breathing Panel */}
+      {showBreathing && (
+        <div className="wellness-panel breathing-panel-enhanced">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 className="panel-title">Breathe</h3>
+            <button onClick={() => setShowBreathing(false)} className="panel-close">
+              <X size={18} />
+            </button>
+          </div>
+          
+          <div className="breathing-circle">
+            <span style={{ 
+              color: 'white', 
+              fontWeight: 600, 
+              fontSize: '16px',
+              textTransform: 'capitalize',
+              textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            }}>
+              {breathPhase === 'inhale' ? 'In' : breathPhase === 'hold' ? 'Hold' : 'Out'}
+            </span>
+          </div>
+          
+          <p className="breathing-instruction" style={{ marginBottom: '16px' }}>
+            {breathPattern.description}
+          </p>
+          
+          <div className="pattern-selector">
+            {BREATHING_PATTERNS.map((pattern, idx) => (
+              <button
+                key={idx}
+                className={`pattern-btn ${breathPattern.name === pattern.name ? 'active' : ''}`}
+                onClick={() => setBreathPattern(pattern)}
+              >
+                {pattern.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mood Tracker Panel */}
+      {showMoodTracker && (
+        <div className="wellness-panel mood-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 className="panel-title">How are you feeling?</h3>
+            <button onClick={() => setShowMoodTracker(false)} className="panel-close">
+              <X size={18} />
+            </button>
+          </div>
+          
+          <div className="mood-grid">
+            {MOODS.map((mood) => (
+              <button
+                key={mood.value}
+                className="mood-btn"
+                onClick={() => {
+                  const today = new Date().toLocaleDateString();
+                  const newEntry = { date: today, mood: mood.value };
+                  setMoodHistory(prev => [...prev.filter(e => e.date !== today), newEntry]);
+                  setShowMoodTracker(false);
+                  
+                  // Show encouraging message
+                  const messages = {
+                    5: "That's wonderful! Keep embracing the good moments.",
+                    4: "Glad you're feeling good today!",
+                    3: "It's okay to be in the middle. Take care of yourself.",
+                    2: "I see you. It's okay to have tough days.",
+                    1: "You're not alone. Please reach out if you need support."
+                  };
+                  setCurrentAffirmation(messages[mood.value as keyof typeof messages]);
+                  setShowAffirmation(true);
+                  setTimeout(() => setShowAffirmation(false), 5000);
+                }}
+                style={{ borderColor: mood.color }}
+              >
+                <span className="mood-emoji">{mood.emoji}</span>
+                <span className="mood-label">{mood.label}</span>
+              </button>
+            ))}
+          </div>
+          
+          {moodHistory.length > 0 && (
+            <div className="mood-history">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <TrendingUp size={14} color="var(--accent-lavender)" />
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {moodHistory.length} check-in{moodHistory.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="mood-timeline">
+                {moodHistory.slice(-7).map((entry, idx) => {
+                  const mood = MOODS.find(m => m.value === entry.mood);
+                  return (
+                    <div key={idx} className="mood-dot" style={{ background: mood?.color }} title={entry.date} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Crisis Support Panel */}
+      {showCrisisSupport && (
+        <div className="wellness-panel crisis-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 className="panel-title">You're Not Alone</h3>
+            <button onClick={() => setShowCrisisSupport(false)} className="panel-close">
+              <X size={18} />
+            </button>
+          </div>
+          
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.6 }}>
+            If you're in crisis or need immediate support, these resources are here 24/7:
+          </p>
+          
+          <div className="crisis-resources">
+            {CRISIS_RESOURCES.map((resource, idx) => (
+              <a 
+                key={idx}
+                href={`tel:${resource.number.replace(/\D/g, '')}`}
+                className="crisis-resource-card"
+              >
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {resource.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {resource.description}
+                  </div>
+                </div>
+                <div style={{ 
+                  fontSize: '15px', 
+                  fontWeight: 600, 
+                  color: 'var(--accent-rose)',
+                  fontFamily: 'monospace'
+                }}>
+                  {resource.number}
+                </div>
+              </a>
+            ))}
+          </div>
+          
+          <div style={{ 
+            marginTop: '16px', 
+            padding: '14px', 
+            background: 'var(--glass-2)', 
+            borderRadius: '12px',
+            border: '1px solid var(--border-glass)',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5
+          }}>
+            💜 Remember: Asking for help is a sign of strength, not weakness.
+          </div>
+        </div>
+      )}
+
+      {/* Gratitude Journal Panel */}
+      {showGratitude && (
+        <div className="wellness-panel gratitude-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 className="panel-title">Gratitude</h3>
+            <button onClick={() => setShowGratitude(false)} className="panel-close">
+              <X size={18} />
+            </button>
+          </div>
+          
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            What's one thing you're grateful for today?
+          </p>
+          
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Type something you appreciate..."
+              className="gratitude-input"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  const today = new Date().toLocaleDateString();
+                  setGratitudeEntries(prev => [...prev, { date: today, text: e.currentTarget.value.trim() }]);
+                  e.currentTarget.value = '';
+                  setCurrentAffirmation("Thank you for taking a moment to appreciate the good. 🌸");
+                  setShowAffirmation(true);
+                  setTimeout(() => setShowAffirmation(false), 4000);
+                }
+              }}
+            />
+          </div>
+          
+          {gratitudeEntries.length > 0 && (
+            <div className="gratitude-history">
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Recent entries ({gratitudeEntries.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                {gratitudeEntries.slice(-5).reverse().map((entry, idx) => (
+                  <div key={idx} className="gratitude-entry">
+                    <BookHeart size={14} style={{ color: 'var(--accent-rose)', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '13px', lineHeight: 1.4 }}>{entry.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Background clouds */}
       <div className="bg-scene" aria-hidden="true">
         <div className="bg-cloud bg-cloud-1" />
@@ -360,36 +656,6 @@ export function Home() {
         <div className="bg-cloud bg-cloud-4" />
         <div className="bg-refraction" />
         <div className="bg-noise" />
-      </div>
-
-      {/* Breathing Exercise Widget */}
-      <div className="breathing-widget">
-        <button 
-          className="breathing-trigger" 
-          onClick={() => setShowBreathing(!showBreathing)}
-          title="Breathing exercise"
-        >
-          <Wind size={24} />
-        </button>
-        
-        {showBreathing && (
-          <div className="breathing-panel">
-            <h3 className="breathing-title">Take a breath</h3>
-            <div className="breathing-circle">
-              <span style={{ 
-                color: 'white', 
-                fontWeight: 600, 
-                fontSize: '14px',
-                textTransform: 'capitalize'
-              }}>
-                {breathPhase === 'inhale' ? 'Breathe in' : breathPhase === 'hold' ? 'Hold' : 'Breathe out'}
-              </span>
-            </div>
-            <p className="breathing-instruction">
-              Follow the circle. 4 seconds in, 4 seconds hold, 4 seconds out.
-            </p>
-          </div>
-        )}
       </div>
 
       {screen === "welcome" ? (
@@ -440,7 +706,7 @@ export function Home() {
             animation: 'gradientShift 8s ease-in-out infinite', 
             letterSpacing: '-0.03em' 
           }}>
-            dreem
+            Lumina
           </h1>
           
           <p style={{ 
@@ -506,6 +772,41 @@ export function Home() {
               <Moon size={16} /> Constellation
             </Link>
 
+            {/* Wellness Streak Tracker */}
+            {(moodHistory.length > 0 || gratitudeEntries.length > 0) && (
+              <div className="wellness-streak">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Zap size={16} style={{ color: 'var(--accent-lavender)' }} />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Wellness Streak
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--accent-lavender)' }}>
+                    {Math.max(moodHistory.length, gratitudeEntries.length)}
+                  </span>
+                </div>
+                <div style={{ 
+                  height: '6px', 
+                  background: 'var(--glass-2)', 
+                  borderRadius: '3px', 
+                  overflow: 'hidden',
+                  border: '1px solid var(--border-glass)'
+                }}>
+                  <div style={{ 
+                    height: '100%', 
+                    background: 'var(--gradient-button)', 
+                    width: `${Math.min(100, ((moodHistory.length + gratitudeEntries.length) / 30) * 100)}%`,
+                    transition: 'width 0.8s var(--ease-glass)',
+                    boxShadow: '0 0 10px var(--glow-primary)'
+                  }} />
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  Keep going! Daily check-ins build resilience.
+                </p>
+              </div>
+            )}
+
             <div className="sidebar-section">
               <p className="sidebar-label">Recent</p>
               {history.length === 0 && <div className="history-empty">No conversations yet.</div>}
@@ -559,7 +860,7 @@ export function Home() {
                 <div className="chat-header-orb">
                   <div className="chat-header-orb-inner" />
                 </div>
-                <span className="chat-header-name">dreem</span>
+                <span className="chat-header-name">Lumina</span>
               </div>
               
               <span className="model-badge-dream">{MODEL_TAG}</span>
