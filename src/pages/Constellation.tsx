@@ -294,8 +294,8 @@ function ComposeOverlay({ onClose, onSubmit }: { onClose: () => void; onSubmit: 
       <div className={`compose-panel${mounted ? " cp-in" : ""}`}>
         {phase === "done" ? (
           <div style={{ padding: '48px 32px', textAlign: 'center' }}>
-            <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', borderRadius: '50%', background: 'var(--gradient-button)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)', animation: 'orb-breathe 2s ease-in-out infinite' }}>
-              <Heart size={28} style={{ color: 'var(--bg-primary)' }} />
+            <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', borderRadius: '50%', background: 'var(--gradient-button)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)', animation: 'orbPulse 2s ease-in-out infinite' }}>
+              <Heart size={28} style={{ color: 'var(--text-inverse)' }} />
             </div>
             <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
               Shared with the stars
@@ -307,7 +307,7 @@ function ComposeOverlay({ onClose, onSubmit }: { onClose: () => void; onSubmit: 
         ) : (
           <>
             <div className="compose-header">
-              <div className="ch-icon"><Sparkles size={16} style={{ color: 'var(--accent-primary)' }} /></div>
+              <div className="ch-icon"><Sparkles size={16} style={{ color: 'var(--accent-lavender)' }} /></div>
               <div className="ch-text">
                 <h3>Share Something</h3>
                 <p>Anonymous, gentle, safe</p>
