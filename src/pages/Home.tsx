@@ -85,8 +85,17 @@ export function Home() {
     };
 
     cycle();
-    const interval = setInterval(cycle, durations[phases[phaseIndex % 3]]);
-    return () => clearInterval(interval);
+    // Use the updated phaseIndex (now 1 after first cycle()) for the first interval duration
+    const getNextDuration = () => durations[phases[phaseIndex % 3]];
+
+    let timeout: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      cycle();
+      timeout = setTimeout(tick, getNextDuration());
+    };
+    timeout = setTimeout(tick, getNextDuration());
+
+    return () => clearTimeout(timeout);
   }, [showBreathing]);
 
   // Show affirmation on first load
@@ -341,20 +350,14 @@ export function Home() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
-      className="app-container"
-    >
-      <div className="noise-overlay" />
+    <div className="app-container">
       <ThemeToggle />
       
       <AnimatePresence>
         {/* Daily affirmation toast */}
         {showAffirmation && (
           <motion.div
-            className="affirmation-toast bento-card"
+            className="affirmation-toast"
             initial={{ y: -50, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -50, opacity: 0, scale: 0.9 }}
@@ -500,7 +503,22 @@ export function Home() {
               </button>
             </div>
 
-            <button className="new-chat-btn-dream" onClick={() => { setMsgs([]); setActiveId(Date.now().toString()); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}>
+            <button className="new-chat-btn-dream" onClick={() => {
+              // Save current session to history before clearing
+              if (msgs.length > 0) {
+                const title = typeof msgs[0].content === 'string'
+                  ? msgs[0].content.slice(0, 40)
+                  : (msgs[0].displayText || "Conversation").slice(0, 40);
+                setHistory(prev => {
+                  const exists = prev.find(h => h.id === activeId);
+                  if (exists) return prev;
+                  return [{ id: activeId, title, msgs }, ...prev];
+                });
+              }
+              setMsgs([]);
+              setActiveId(Date.now().toString());
+              if (window.innerWidth <= 768) setIsSidebarOpen(false);
+            }}>
               <Plus size={18} /> New Conversation
             </button>
 
