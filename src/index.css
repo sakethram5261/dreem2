@@ -2,67 +2,86 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DREEM - NEO-BRUTAL GLASS SYSTEM (OLED EDITION)
-   Inspired by Neo-Brutalism meets Liquid Glass.
-   High contrast, OLED blacks, crisp borders, kinetic movement.
+   DREEM - LIQUID GLASS DESIGN SYSTEM
+   Inspired by iOS Liquid Glass - layered depth, refracting light, soft focus
+   
+   MORNING: Muted ash tones with warm undertones (NOT bright white)
+   NIGHT: Deep cosmic sanctuary with rich depth
 ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --bg-base: #000000;
-  --bg-elevated: #0a0a0a;
-  --bg-surface: #111111;
+  /* ── NIGHT THEME (Default) ── */
+  --bg-base: #08070d;
+  --bg-elevated: #0d0c14;
+  --bg-surface: #13111c;
   
-  /* Harder glass, sharper edges */
-  --glass-1: rgba(255, 255, 255, 0.03);
-  --glass-2: rgba(255, 255, 255, 0.06);
-  --glass-3: rgba(255, 255, 255, 0.1);
+  /* Glass layers - the magic of liquid glass */
+  --glass-1: rgba(255, 255, 255, 0.02);
+  --glass-2: rgba(255, 255, 255, 0.04);
+  --glass-3: rgba(255, 255, 255, 0.07);
+  --glass-hover: rgba(255, 255, 255, 0.09);
+  --glass-active: rgba(255, 255, 255, 0.12);
   
-  /* Neo-Brutalism Borders */
-  --border-glass: 2px solid rgba(255, 255, 255, 0.15);
-  --accent-lavender: #a890ff;
+  /* Borders with light refraction effect */
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(180, 160, 255, 0.2);
+  --border-focus: rgba(180, 160, 255, 0.4);
   
-  /* OLED Blacks */
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-}
-
-body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: "Inter", sans-serif;
-}
-
-/* Bento Grid Helper */
-.bento-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: minmax(150px, auto);
-  gap: 1.5rem;
-  padding: 1.5rem;
-}
-
-.bento-card {
-  background: var(--bg-surface);
-  border: var(--border-glass);
-  border-radius: 24px;
-  padding: 1.5rem;
-  backdrop-filter: blur(20px);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Noise overlay */
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.04;
-  z-index: 1000;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  /* Text with proper contrast */
+  --text-primary: #f0eef5;
+  --text-secondary: rgba(240, 238, 245, 0.65);
+  --text-muted: rgba(240, 238, 245, 0.35);
+  --text-inverse: #0d0c14;
+  
+  /* Accent colors - dreamy pastels */
+  --accent-lavender: #b4a0ff;
+  --accent-rose: #ff9eb8;
+  --accent-peach: #ffb59e;
+  --accent-mint: #9effd4;
+  
+  /* Glow effects */
+  --glow-primary: rgba(180, 160, 255, 0.35);
+  --glow-secondary: rgba(255, 158, 184, 0.25);
+  --glow-soft: rgba(180, 160, 255, 0.15);
+  
+  /* Ambient orb colors for background */
+  --orb-1: rgba(180, 160, 255, 0.08);
+  --orb-2: rgba(255, 158, 184, 0.06);
+  --orb-3: rgba(158, 255, 212, 0.05);
+  --orb-4: rgba(255, 181, 158, 0.04);
+  
+  /* Gradients */
+  --gradient-text: linear-gradient(135deg, #f0eef5 0%, #b4a0ff 40%, #ff9eb8 70%, #f0eef5 100%);
+  --gradient-accent: linear-gradient(135deg, #b4a0ff 0%, #ff9eb8 100%);
+  --gradient-button: linear-gradient(135deg, #b4a0ff 0%, #c8b8ff 40%, #ff9eb8 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  
+  /* Shadows - soft and dreamy */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px var(--glow-primary);
+  --shadow-inset: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  
+  /* Cloud/blob animation colors */
+  --cloud-1: rgba(180, 160, 255, 0.12);
+  --cloud-2: rgba(255, 158, 184, 0.1);
+  --cloud-3: rgba(158, 255, 212, 0.08);
+  
+  /* Status */
+  --safe: #9effd4;
+  --safe-glow: rgba(158, 255, 212, 0.3);
+  
+  /* Timing */
+  --ease-glass: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 0.2s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
 }
 
 /* GPU Acceleration for smooth animations */
-.app-container,
 .sidebar-dream,
 .chat-area-dream,
 .dream-header,
@@ -466,6 +485,8 @@ body {
   transform: translateX(-100%);
   opacity: 0;
   width: 0;
+  min-width: 0;
+  overflow: hidden;
   padding: 0;
   pointer-events: none;
 }
@@ -827,7 +848,7 @@ body {
 .chat-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 0 10%;
+  padding: 24px 10% 0;
   display: flex;
   flex-direction: column;
   scroll-behavior: smooth;
@@ -1403,7 +1424,7 @@ body {
 
 .secrets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 18px;
 }
 
@@ -1547,7 +1568,8 @@ body {
   box-shadow: 0 0 12px var(--glow-soft);
 }
 
-.reaction-btn:disabled { cursor: default; opacity: 0.6; }
+.reaction-btn:disabled { cursor: default; opacity: 0.5; }
+.reaction-btn.rb-sel:disabled { opacity: 1; }
 
 .reaction-btn.rb-pop {
   animation: popBounce 0.4s var(--ease-bounce) forwards;
@@ -1938,9 +1960,13 @@ body {
   animation: instructionFade 8s ease-in-out infinite;
 }
 
+/* FIX: `content` cannot be animated on regular elements — only on ::before/::after.
+   Replaced with opacity cycle that mirrors the breathe animation timing. */
 @keyframes instructionFade {
-  0%, 45% { content: "Breathe in..."; }
-  50%, 95% { content: "Breathe out..."; }
+  0%, 40% { opacity: 1; }
+  45%, 50% { opacity: 0.3; }
+  55%, 95% { opacity: 1; }
+  100% { opacity: 1; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
