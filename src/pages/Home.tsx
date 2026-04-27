@@ -1,724 +1,99 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
-import { Send, Loader2, Menu, Plus, Sparkles, Mic, MicOff, ImagePlus, X, Volume2, VolumeX, Heart, Moon, MessageCircle, Wind } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
-import { Link } from "wouter";
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
-import { db } from "../firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ThemeToggle } from "../components/ThemeToggle";
-import { useTheme } from "../contexts/ThemeContext";
-
-const MODEL_TAG = "llama-3.3-70b";
-
-const PROMPTS = [
-  "I need a moment to breathe and feel grounded...",
-  "Help me find some peace in this moment",
-  "I want to talk about something on my mind",
-  "Guide me through a calming exercise",
-];
-
-const AFFIRMATIONS = [
-  "You are exactly where you need to be.",
-  "Your feelings are valid and worthy of attention.",
-  "Take all the time you need. There is no rush here.",
-  "You deserve moments of peace and gentleness.",
-  "Every breath is a new beginning.",
-];
-
-interface Msg {
-  role: "user" | "assistant";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
-  displayText?: string;
-  imagePreview?: string;
-  streaming?: boolean;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  msgs: Msg[];
-}
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useChatStore } from '../stores/chatStore';
+import { useChat } from '../hooks/useChat';
+import { Sidebar } from '../components/Sidebar';
+import { ChatHeader } from '../components/ChatHeader';
+import { ChatMessages } from '../components/ChatMessages';
+import { ChatInput } from '../components/ChatInput';
+import { BreathingExercise } from '../components/BreathingExercise';
+import { AffirmationToast } from '../components/AffirmationToast';
 
 export function Home() {
   const { user } = useUser();
-  const { theme } = useTheme();
-  const [credits, setCredits] = useState<number | null>(null);
-  const [showAffirmation, setShowAffirmation] = useState(false);
-  const [currentAffirmation, setCurrentAffirmation] = useState("");
-  const [showBreathing, setShowBreathing] = useState(false);
-  const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
-
-  const [screen, setScreen] = useState<"welcome" | "chat">(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("dreem_history")) return "chat";
-    return "welcome";
-  });
-
-  const [history, setHistory] = useState<ChatSession[]>([]);
-  const [activeId, setActiveId] = useState<string>(() => Date.now().toString());
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(typeof window !== "undefined" ? window.innerWidth > 768 : true);
-  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const { ui, toggleSidebar, updateSessionTitle } = useChatStore();
+  const { sendMessage } = useChat();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Breathing exercise timer
-  useEffect(() => {
-    if (!showBreathing) return;
-
-    const phases = ['inhale', 'hold', 'exhale'] as const;
-    const durations = { inhale: 4000, hold: 4000, exhale: 4000 };
-    let phaseIndex = 0;
-
-    const cycle = () => {
-      setBreathPhase(phases[phaseIndex]);
-      phaseIndex = (phaseIndex + 1) % 3;
-    };
-
-    cycle();
-    // Use the updated phaseIndex (now 1 after first cycle()) for the first interval duration
-    const getNextDuration = () => durations[phases[phaseIndex % 3]];
-
-    let timeout: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      cycle();
-      timeout = setTimeout(tick, getNextDuration());
-    };
-    timeout = setTimeout(tick, getNextDuration());
-
-    return () => clearTimeout(timeout);
-  }, [showBreathing]);
-
-  // Show affirmation on first load
-  useEffect(() => {
-    const lastShown = localStorage.getItem("dreem_affirmation_date");
-    const today = new Date().toDateString();
-
-    if (lastShown !== today) {
-      const randomAffirmation = AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)];
-      setCurrentAffirmation(randomAffirmation);
-      setShowAffirmation(true);
-      localStorage.setItem("dreem_affirmation_date", today);
-
-      setTimeout(() => setShowAffirmation(false), 5000);
-    }
-  }, []);
-
-  // Sync Firebase credits
+  // Sync user with Firebase
   useEffect(() => {
     if (!user) return;
 
     const syncUser = async () => {
       try {
-        const userRef = doc(db, "users", user.id);
+        const userRef = doc(db, 'users', user.id);
         const userSnap = await getDoc(userRef);
 
-        if (userSnap.exists()) {
-          setCredits(userSnap.data().credits);
-        } else {
+        if (!userSnap.exists()) {
           await setDoc(userRef, {
             email: user.primaryEmailAddress?.emailAddress,
             credits: 10,
             createdAt: new Date(),
           });
-          setCredits(10);
         }
-
-        setScreen("chat");
-        setMsgs([]);
       } catch (error) {
-        console.error("Firebase Sync Error:", error);
+        console.error('Firebase sync error:', error);
       }
     };
 
     syncUser();
   }, [user]);
 
-  // Local history
+  // Handle window resize for sidebar
   useEffect(() => {
-    const saved = localStorage.getItem("dreem_history");
-    if (saved) setHistory(JSON.parse(saved));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("dreem_history", JSON.stringify(history));
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, msgs]);
-
-  // TTS
-  const speak = useCallback((text: string) => {
-    if (!ttsEnabled || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.9;
-    utt.pitch = 1.0;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes("Samantha") || v.name.includes("Google UK English Female") || v.name.includes("Karen")
-    );
-    if (preferred) utt.voice = preferred;
-    window.speechSynthesis.speak(utt);
-  }, [ttsEnabled]);
-
-  // Voice recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        setIsTranscribing(true);
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("file", audioBlob, "recording.webm");
-
-        try {
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData });
-          const data = await res.json();
-          if (data.text) setInput(data.text);
-        } catch (err) {
-          console.error("Transcription error:", err);
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch {
-      alert("Microphone access needed to use voice input.");
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  // Image handling
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => setPendingImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  // Send message
-  const send = useCallback(async (text: string, imageBase64?: string) => {
-    const t = text.trim();
-    if ((!t && !imageBase64) || loading) return;
-
-    if (credits !== null && credits <= 0) {
-      alert("You've used all your sessions for now. Take a rest, and come back soon.");
-      return;
-    }
-
-    let userMsgContent: Msg["content"];
-    const displayText = t;
-
-    if (imageBase64) {
-      userMsgContent = [
-        ...(t ? [{ type: "text", text: t }] : []),
-        { type: "image_url", image_url: { url: imageBase64 } },
-      ];
-    } else {
-      userMsgContent = t;
-    }
-
-    const userMsg: Msg = { role: "user", content: userMsgContent, displayText, imagePreview: imageBase64 };
-    const nextMsgs = [...msgs, userMsg];
-    setMsgs(nextMsgs);
-    setInput("");
-    setPendingImage(null);
-    setLoading(true);
-
-    let accumulated = "";
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMsgs.map(m => ({
-            role: m.role,
-            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
-          })),
-          userName: user?.firstName || "Friend",
-          hasImage: !!imageBase64,
-        }),
-      });
-
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true }]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed === "data: [DONE]") continue;
-            const jsonString = trimmed.replace(/^data:\s*/, "");
-
-            try {
-              const parsed = JSON.parse(jsonString);
-              const content = parsed.choices?.[0]?.delta?.content || "";
-
-              if (content) {
-                accumulated += content;
-                setMsgs(prev => {
-                  const updated = [...prev];
-                  if (updated[updated.length - 1]) {
-                    updated[updated.length - 1] = {
-                      ...updated[updated.length - 1],
-                      content: accumulated
-                    };
-                  }
-                  return updated;
-                });
-              }
-            } catch { continue; }
-          }
-        }
-
-        if (accumulated) speak(accumulated);
+    const handleResize = () => {
+      if (window.innerWidth > 768 && !ui.isSidebarOpen) {
+        toggleSidebar();
       }
+    };
 
-      setHistory(prev => {
-        const existingIdx = prev.findIndex(h => h.id === activeId);
-        if (existingIdx >= 0) {
-          const updated = [...prev];
-          updated[existingIdx].msgs = [...nextMsgs, { role: "assistant", content: accumulated }];
-          return updated;
-        }
-        return prev;
-      });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [ui.isSidebarOpen, toggleSidebar]);
 
-    } catch (err) {
-      console.error("Error:", err);
-      setMsgs(prev => [...prev.slice(0, -1), { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }]);
+  const handleSendMessage = async (content: string, imageData?: string) => {
+    if (!content.trim() && !imageData) return;
+
+    setLoading(true);
+    
+    try {
+      await sendMessage(content, imageData);
+      
+      // Generate title for new conversations
+      const { sessions, activeSessionId } = useChatStore.getState();
+      const activeSession = sessions.find((s) => s.id === activeSessionId);
+      
+      if (activeSession && activeSession.messages.length === 2 && activeSession.title === 'New Conversation') {
+        const title = content.slice(0, 50) + (content.length > 50 ? '...' : '');
+        updateSessionTitle(activeSessionId, title);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
     } finally {
       setLoading(false);
-      setMsgs(prev => {
-        const updated = [...prev];
-        if (updated[updated.length - 1]) updated[updated.length - 1].streaming = false;
-        return updated;
-      });
     }
-  }, [msgs, loading, user, credits, activeId, speak]);
-
-  const handleSend = () => send(input, pendingImage || undefined);
-
-  const getMsgText = (msg: Msg): string => {
-    if (msg.displayText !== undefined) return msg.displayText;
-    if (typeof msg.content === "string") return msg.content;
-    const textPart = (msg.content as any[]).find(p => p.type === "text");
-    return textPart?.text || "";
-  };
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
   };
 
   return (
-    <div className="app-container">
-      <ThemeToggle />
-      
-      <AnimatePresence>
-        {/* Daily affirmation toast */}
-        {showAffirmation && (
-          <motion.div
-            className="affirmation-toast"
-            initial={{ y: -50, opacity: 0, scale: 0.9 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -50, opacity: 0, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <div className="affirmation-icon">
-              <Heart size={18} style={{ color: 'white' }} />
-            </div>
-            <p className="affirmation-text">{currentAffirmation}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <>
+      <div className="app-container">
+        <Sidebar />
 
-      {/* Background clouds */}
-      <div className="bg-scene" aria-hidden="true">
-        <div className="bg-cloud bg-cloud-1" />
-        <div className="bg-cloud bg-cloud-2" />
-        <div className="bg-cloud bg-cloud-3" />
-        <div className="bg-cloud bg-cloud-4" />
-        <div className="bg-refraction" />
-        <div className="bg-noise" />
+        {ui.isSidebarOpen && window.innerWidth <= 768 && (
+          <div className="sidebar-overlay" onClick={toggleSidebar} />
+        )}
+
+        <main className="main-content">
+          <ChatHeader />
+          <ChatMessages onSendMessage={handleSendMessage} />
+          <ChatInput onSend={handleSendMessage} loading={loading} />
+        </main>
       </div>
 
-      {/* Breathing Exercise Widget */}
-      <div className="breathing-widget">
-        <button
-          className="breathing-trigger"
-          onClick={() => setShowBreathing(!showBreathing)}
-          title="Breathing exercise"
-        >
-          <Wind size={24} />
-        </button>
-
-        {showBreathing && (
-          <div className="breathing-panel">
-            <h3 className="breathing-title">Take a breath</h3>
-            <motion.div
-              className="breathing-circle"
-              initial={{ scale: 0.6, opacity: 0.3 }}
-              animate={{ scale: [0.6, 1, 0.6], opacity: [0.3, 0.7, 0.3] }}
-              transition={{
-                duration: 8,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatType: "loop",
-              }}
-            >
-              <span style={{
-                color: 'white',
-                fontWeight: 600,
-                fontSize: '14px',
-                textTransform: 'capitalize'
-              }}>
-                {breathPhase === 'inhale' ? 'Breathe in' : breathPhase === 'hold' ? 'Hold' : 'Breathe out'}
-              </span>
-            </motion.div>
-            <p className="breathing-instruction">
-              Follow the circle. 4 seconds in, 4 seconds hold, 4 seconds out.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {screen === "welcome" ? (
-        <div className="flex flex-col items-center justify-center h-screen w-screen text-center relative z-10 p-8">
-          <div style={{
-            width: '90px',
-            height: '90px',
-            borderRadius: '50%',
-            background: 'var(--glass-3)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid var(--border-glow)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '2rem',
-            boxShadow: 'var(--shadow-glow)',
-            animation: 'orbFloat 6s ease-in-out infinite'
-          }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: 'var(--gradient-button)',
-              boxShadow: '0 0 20px var(--glow-primary)'
-            }} />
-          </div>
-
-          <h1 style={{
-            fontSize: 'clamp(3rem, 10vw, 5rem)',
-            fontWeight: 700,
-            background: 'var(--gradient-text)',
-            backgroundSize: '300% 300%',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            marginBottom: '1rem',
-            animation: 'gradientShift 8s ease-in-out infinite',
-            letterSpacing: '-0.03em'
-          }}>
-            Lumina
-          </h1>
-
-          <p style={{
-            fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
-            color: 'var(--text-secondary)',
-            maxWidth: '440px',
-            lineHeight: 1.7,
-            marginBottom: '2.5rem'
-          }}>
-            A safe space to explore your thoughts, find calm, and nurture your wellbeing.
-          </p>
-
-          <button
-            onClick={() => setScreen("chat")}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem 2.5rem',
-              borderRadius: '50px',
-              background: 'var(--gradient-button)',
-              color: 'var(--text-inverse)',
-              fontWeight: 600,
-              fontSize: '1rem',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 24px var(--glow-primary)',
-              transition: 'all 0.3s var(--ease-glass)'
-            }}
-          >
-            Begin Your Journey <Sparkles size={18} />
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Sidebar */}
-          <aside className={`sidebar-dream ${isSidebarOpen ? "open" : "closed"}`}>
-            <div className="mobile-sidebar-header">
-              <span className="sidebar-label">Menu</span>
-              <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <button className="new-chat-btn-dream" onClick={() => {
-              // Save current session to history before clearing
-              if (msgs.length > 0) {
-                const title = typeof msgs[0].content === 'string'
-                  ? msgs[0].content.slice(0, 40)
-                  : (msgs[0].displayText || "Conversation").slice(0, 40);
-                setHistory(prev => {
-                  const exists = prev.find(h => h.id === activeId);
-                  if (exists) return prev;
-                  return [{ id: activeId, title, msgs }, ...prev];
-                });
-              }
-              setMsgs([]);
-              setActiveId(Date.now().toString());
-              if (window.innerWidth <= 768) setIsSidebarOpen(false);
-            }}>
-              <Plus size={18} /> New Conversation
-            </button>
-
-            <Link href="/constellation" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '14px 18px',
-              borderRadius: '14px',
-              background: 'var(--glass-2)',
-              border: '1px solid var(--border-glass)',
-              color: 'var(--text-secondary)',
-              textDecoration: 'none',
-              marginBottom: '20px',
-              transition: 'all 0.2s var(--ease-glass)',
-              fontSize: '14px'
-            }}>
-              <Moon size={16} /> Constellation
-            </Link>
-
-            <div className="sidebar-section">
-              <p className="sidebar-label">Recent</p>
-              {history.length === 0 && <div className="history-empty">No conversations yet.</div>}
-              {history.map(chat => (
-                <div
-                  key={chat.id}
-                  className={`history-item-dream ${activeId === chat.id ? "active" : ""}`}
-                  onClick={() => { setActiveId(chat.id); setMsgs(chat.msgs); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}
-                >
-                  <MessageCircle size={14} />
-                  <span className="history-text">{chat.title}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="sidebar-footer">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="new-chat-btn-dream" style={{ width: '100%', justifyContent: 'center' }}>
-                    Sign In to Save
-                  </button>
-                </SignInButton>
-              </SignedOut>
-
-              <SignedIn>
-                <div className="clickable-footer">
-                  <div className="user-profile-mini">
-                    <UserButton afterSignOutUrl="/" />
-                    <div className="user-info">
-                      <p className="u-name">{user?.firstName || "Friend"}</p>
-                      <p className="u-status">{credits ?? 0} sessions</p>
-                    </div>
-                  </div>
-                </div>
-              </SignedIn>
-            </div>
-          </aside>
-
-          {isSidebarOpen && typeof window !== "undefined" && window.innerWidth <= 768 && (
-            <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
-          )}
-
-          {/* Main chat area */}
-          <main className="main-content-dream">
-            <header className="dream-header">
-              <button className="menu-toggle-dream" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-                <Menu size={22} />
-              </button>
-
-              <div className="logo-section">
-                <div className="chat-header-orb">
-                  <div className="chat-header-orb-inner" />
-                </div>
-                <span className="chat-header-name">Lumina</span>
-              </div>
-
-              <span className="model-badge-dream">{MODEL_TAG}</span>
-
-              <button
-                onClick={() => { window.speechSynthesis?.cancel(); setTtsEnabled(p => !p); }}
-                title={ttsEnabled ? "Mute voice" : "Enable voice"}
-                className="icon-btn-clear"
-                style={{ color: ttsEnabled ? 'var(--accent-lavender)' : undefined }}
-              >
-                {ttsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              </button>
-            </header>
-
-            <div className="chat-viewport">
-              {msgs.length === 0 ? (
-                <div className="dream-welcome">
-                  <h2 className="hero-text-dream">{getGreeting()}, {user?.firstName || "Friend"}</h2>
-                  <p className="hero-sub">
-                    This is your space. Share what&apos;s on your mind, or choose a starting point below.
-                  </p>
-
-                  <div className="hero-grid">
-                    {PROMPTS.map((p, i) => (
-                      <button key={i} className="hero-card-dream" onClick={() => send(p)}>
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                msgs.map((m, i) => (
-                  <div key={i} className="gemini-row-dream">
-                    <div className={`avatar-circle-dream ${m.role}`}>
-                      {m.role === "user" ? (user?.firstName?.[0] || "Y") : "D"}
-                    </div>
-                    <div className="text-body-dream">
-                      {m.imagePreview && (
-                        <img
-                          src={m.imagePreview}
-                          alt="shared"
-                          style={{ maxWidth: '220px', borderRadius: '14px', marginBottom: '12px', display: 'block', border: '1px solid var(--border-glass)' }}
-                        />
-                      )}
-
-                      {m.streaming && !m.content ? (
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '4px 0' }}>
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite' }} />
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite', animationDelay: '0.2s' }} />
-                          <span style={{ width: '8px', height: '8px', background: 'var(--accent-lavender)', borderRadius: '50%', animation: 'orbPulse 1.5s ease-in-out infinite', animationDelay: '0.4s' }} />
-                        </div>
-                      ) : (
-                        <>
-                          {getMsgText(m)}
-                          {m.streaming && <span className="stream-cursor" />}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Input area */}
-            <div className="dream-input-container">
-              {pendingImage && (
-                <div className="image-preview-row">
-                  <div className="img-preview-box">
-                    <img src={pendingImage} alt="pending" />
-                    <span>Image ready</span>
-                    <button className="rm-img-btn" onClick={() => setPendingImage(null)}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="dream-input-wrapper">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleImageSelect}
-                />
-
-                <button
-                  className="voice-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Share an image"
-                  disabled={loading}
-                  style={{ color: pendingImage ? 'var(--accent-lavender)' : undefined }}
-                >
-                  <ImagePlus size={20} />
-                </button>
-
-                <button
-                  className={`voice-btn ${isRecording ? 'recording' : ''}`}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={loading || isTranscribing}
-                  title={isRecording ? "Stop recording" : "Use your voice"}
-                >
-                  {isTranscribing ? <Loader2 size={20} className="animate-spin" /> : isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-                </button>
-
-                <input
-                  className="dream-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  placeholder={isRecording ? "Listening..." : isTranscribing ? "Processing..." : "What's on your mind?"}
-                />
-
-                <button
-                  className="dream-send"
-                  onClick={handleSend}
-                  disabled={loading || (!input.trim() && !pendingImage)}
-                >
-                  {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                </button>
-              </div>
-            </div>
-          </main>
-        </>
-      )}
-    </div>
+      <BreathingExercise />
+      <AffirmationToast />
+    </>
   );
 }
