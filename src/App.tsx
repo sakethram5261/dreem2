@@ -1,49 +1,63 @@
-import { Switch, Route } from "wouter";
-import { Home } from "./pages/Home";
-import { Constellation } from "./pages/Constellation";
-import { ThemeProvider } from "./contexts/ThemeContext";
+import { Switch, Route } from 'wouter';
+import { Home } from './pages/Home';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeToggle } from './components/ThemeToggle';
 
 function NotFound() {
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100dvh",
-      flexDirection: "column",
-      gap: "1.5rem",
-      background: "var(--bg-primary)",
-      color: "var(--text-primary)",
-      textAlign: "center",
-      padding: "2rem"
-    }}>
-      <div style={{
-        width: "80px",
-        height: "80px",
-        borderRadius: "50%",
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-accent)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "var(--shadow-glow)"
-      }}>
-        <span style={{ fontSize: "2rem", fontWeight: 700, color: "var(--accent-primary)" }}>404</span>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100dvh',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+        background: 'var(--color-bg-primary)',
+        color: 'var(--color-text-primary)',
+        textAlign: 'center',
+        padding: 'var(--space-6)',
+      }}
+    >
+      <div
+        style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          background: 'var(--color-surface-secondary)',
+          border: '1px solid var(--color-border-default)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '2rem',
+          fontWeight: 600,
+          color: 'var(--color-accent-primary)',
+        }}
+      >
+        404
       </div>
       <div>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "0.5rem" }}>Page not found</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>The page you are looking for does not exist.</p>
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '2rem',
+            fontWeight: 500,
+            marginBottom: 'var(--space-2)',
+          }}
+        >
+          Page not found
+        </h1>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem' }}>
+          The page you are looking for does not exist.
+        </p>
       </div>
-      <a href="/" style={{
-        color: "var(--bg-primary)",
-        background: "var(--gradient-button)",
-        padding: "0.75rem 1.5rem",
-        borderRadius: "50px",
-        fontWeight: 600,
-        textDecoration: "none",
-        fontSize: "0.9rem",
-        boxShadow: "0 4px 16px var(--accent-glow)"
-      }}>
+      <a
+        href="/"
+        className="btn btn-primary"
+        style={{
+          textDecoration: 'none',
+        }}
+      >
         Return Home
       </a>
     </div>
@@ -55,9 +69,9 @@ export default function App() {
     <ThemeProvider>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/constellation" component={Constellation} />
         <Route component={NotFound} />
       </Switch>
+      <ThemeToggle />
     </ThemeProvider>
   );
 }
