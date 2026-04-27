@@ -1,58 +1,34 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { Theme, ThemeContextValue } from '../types';
 
-type Theme = 'morning' | 'night';
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+interface ThemeProviderProps {
+  children: ReactNode;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-function getInitialTheme(): Theme {
-  // Check localStorage first
-  const stored = localStorage.getItem('dreem-theme') as Theme | null;
-  if (stored === 'morning' || stored === 'night') {
-    return stored;
-  }
-  
-  // Auto-detect based on time of day (6am-6pm = morning)
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 18 ? 'morning' : 'night';
-}
-
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('night'); // Default to night, will update on mount
-  const [mounted, setMounted] = useState(false);
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    
+    const saved = localStorage.getItem('lumina-theme') as Theme;
+    if (saved === 'light' || saved === 'dark') return saved;
+    
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
 
   useEffect(() => {
-    setThemeState(getInitialTheme());
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('dreem-theme', theme);
-    }
-  }, [theme, mounted]);
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    localStorage.setItem('lumina-theme', theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    setThemeState(prev => prev === 'morning' ? 'night' : 'morning');
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
-
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return null;
-  }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -60,8 +36,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider');
   }
   return context;
 }
