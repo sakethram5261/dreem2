@@ -1,9 +1,12 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "devCommand": "vite --port 3000",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30
     }
-  ]
+  }
 }
