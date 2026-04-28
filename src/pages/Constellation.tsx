@@ -4,9 +4,8 @@ import {
   collection, addDoc, onSnapshot, updateDoc, doc,
   query, orderBy, serverTimestamp, increment, limit,
 } from "firebase/firestore";
-import { Sparkles, ArrowLeft, Loader2, Lock, Heart } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, Lock, Heart, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { useTheme } from "../contexts/ThemeContext";
 
 interface Secret {
@@ -35,10 +34,10 @@ function StarField() {
 
     // Theme-aware colors
     const isMorning = theme === "morning";
-    const starColor = isMorning ? "rgba(245, 158, 11, 0.6)" : "rgba(196, 181, 253, 0.5)";
-    const glowColor = isMorning ? "rgba(251, 113, 133, 0.3)" : "rgba(244, 167, 185, 0.3)";
-    const lineColor = isMorning ? "rgba(245, 158, 11," : "rgba(196, 181, 253,";
-    const starFill = isMorning ? "#fef3c7" : "#e9d5ff";
+    const starColor = isMorning ? "rgba(212, 175, 55, 0.4)" : "rgba(196, 181, 253, 0.5)";
+    const glowColor = isMorning ? "rgba(166, 138, 100, 0.2)" : "rgba(244, 167, 185, 0.3)";
+    const lineColor = isMorning ? "rgba(212, 175, 55," : "rgba(196, 181, 253,";
+    const starFill = isMorning ? "#D4AF37" : "#e9d5ff";
 
     // Pre-bake glow sprite
     const GS = 24;
@@ -188,17 +187,16 @@ const SecretCard = memo(function SecretCard({ secret, index }: { secret: Secret;
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), Math.min(350, 400 + index * 60));
-    return () => clearTimeout(t);
-  }, [index]);
-
-  useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
+    // Single source of truth: IntersectionObserver only
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) setVisible(true);
     }, { threshold: 0.05 });
     obs.observe(el);
+    // Fallback: if card is already in view on mount (e.g. first few cards)
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) setVisible(true);
     return () => obs.disconnect();
   }, []);
 
@@ -221,7 +219,7 @@ const SecretCard = memo(function SecretCard({ secret, index }: { secret: Secret;
     <div
       ref={cardRef}
       className={`secret-card${visible ? " sc-visible" : ""}`}
-      style={{ transitionDelay: `${Math.min(0.25, index * 0.05)}s` }}
+      style={{ animationDelay: `${2.2 + (index * 0.08)}s` }}
     >
       <div className="sc-accent" aria-hidden="true" />
       <div className="sc-quote" aria-hidden="true">"</div>
@@ -294,8 +292,8 @@ function ComposeOverlay({ onClose, onSubmit }: { onClose: () => void; onSubmit: 
       <div className={`compose-panel${mounted ? " cp-in" : ""}`}>
         {phase === "done" ? (
           <div style={{ padding: '48px 32px', textAlign: 'center' }}>
-            <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', borderRadius: '50%', background: 'var(--gradient-button)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)', animation: 'orbPulse 2s ease-in-out infinite' }}>
-              <Heart size={28} style={{ color: 'var(--text-inverse)' }} />
+            <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', borderRadius: '50%', background: 'var(--gradient-button)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)', animation: 'orb-breathe 2s ease-in-out infinite' }}>
+              <Heart size={28} style={{ color: 'var(--bg-primary)' }} />
             </div>
             <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
               Shared with the stars
@@ -307,7 +305,7 @@ function ComposeOverlay({ onClose, onSubmit }: { onClose: () => void; onSubmit: 
         ) : (
           <>
             <div className="compose-header">
-              <div className="ch-icon"><Sparkles size={16} style={{ color: 'var(--accent-lavender)' }} /></div>
+              <div className="ch-icon"><Sparkles size={16} style={{ color: 'var(--accent-primary)' }} /></div>
               <div className="ch-text">
                 <h3>Share Something</h3>
                 <p>Anonymous, gentle, safe</p>
@@ -360,9 +358,13 @@ export function Constellation() {
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [showCompose, setShowCompose] = useState(false);
   const [ready, setReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 80);
+    const t = setTimeout(() => {
+      setShowSplash(false);
+      setReady(true);
+    }, 2000); // Faster handoff: 2s
     return () => clearTimeout(t);
   }, []);
 
@@ -379,27 +381,35 @@ export function Constellation() {
 
   return (
     <div className={`constellation-page${ready ? " cp-ready" : ""}`}>
-      <ThemeToggle />
-      
-      {/* Background */}
+      {/* Background elements */}
       <div className="bg-scene" aria-hidden="true">
-        <div className="bg-cloud bg-cloud-1" />
-        <div className="bg-cloud bg-cloud-2" />
-        <div className="bg-cloud bg-cloud-3" />
-        <div className="bg-cloud bg-cloud-4" />
-        <div className="bg-refraction" />
-        <div className="bg-noise" />
+        <div className="bg-accent-1" />
+        <div className="bg-accent-2" />
+        <div className="bg-accent-3" />
       </div>
-
       <StarField />
+      {/* Hero Section (Center of Screen Animation) */}
+      <section className="constellation-hero">
+        <h1 className="splash-word">
+          C
+          <div className="word-logo">
+            <div className="welcome-orb" style={{ width: '1em', height: '1em', marginLeft: '-0.06em', marginRight: '0.1em' }}>
+              <div className="welcome-orb-core" style={{ width: '40%', height: '40%' }} />
+            </div>
+          </div>
+          NSTELLATION
+        </h1>
 
-      {/* Entry overlay */}
-      <div className="entry-overlay" aria-hidden="true">
-        <div className="entry-title">Constellation</div>
-        <div className="entry-sub">where hearts find each other</div>
-      </div>
+        {/* Scroll Indicator */}
+        <div className="scroll-indicator">
+          <div className="scroll-arrow">
+            <ChevronDown size={28} />
+          </div>
+          <span>Scroll to explore</span>
+        </div>
+      </section>
 
-      {/* Header */}
+      {/* Persistent Controls (Float over scroll) */}
       <header className="constellation-header">
         <Link href="/">
           <button className="back-btn">
@@ -407,17 +417,6 @@ export function Constellation() {
             <span>Home</span>
           </button>
         </Link>
-        
-        <div className="chead-center">
-          <div className="constellation-orb">
-            <div className="constellation-orb-inner" />
-          </div>
-          <div>
-            <h1 className="constellation-title">Constellation</h1>
-            <p className="constellation-tagline">Anonymous words, shared gently</p>
-          </div>
-        </div>
-        
         <div className="constellation-count">
           <Heart size={12} />
           {secrets.length}
