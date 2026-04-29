@@ -14,6 +14,7 @@
     "@clerk/themes": "^2.0.0",
     "@google/generative-ai": "^0.24.1",
     "firebase": "^10.0.0",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
