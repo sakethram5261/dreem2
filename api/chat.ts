@@ -68,10 +68,23 @@ export default async function handler(req: any, res: any) {
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no");
 
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
-        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
-        if (typeof res.flush === 'function') res.flush(); // Shoves the data out!
+      try {
+        for await (const chunk of result.stream) {
+          try {
+            const text = chunk.text();
+            if (text) {
+              res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
+              if (typeof res.flush === 'function') res.flush(); // Shoves the data out!
+            }
+          } catch (chunkErr) {
+            console.error("Chunk processing error:", chunkErr);
+            // Continue to next chunk instead of crashing
+            continue;
+          }
+        }
+      } catch (streamErr) {
+        console.error("Stream error:", streamErr);
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "I encountered an error processing the image. Please try again." } }] })}\n\n`);
       }
       
       res.write("data: [DONE]\n\n");
