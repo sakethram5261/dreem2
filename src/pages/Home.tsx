@@ -1060,9 +1060,10 @@ export function Home() {
                 accumulated += content;
                 setMsgs(prev => {
                   const updated = [...prev];
-                  if (updated[updated.length - 1]) {
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant") {
                     updated[updated.length - 1] = {
-                      ...updated[updated.length - 1],
+                      ...lastMsg,
                       content: accumulated
                     };
                   }
@@ -1099,12 +1100,19 @@ export function Home() {
 
     } catch (err) {
       console.error("Error:", err);
-      setMsgs(prev => [...prev.slice(0, -1), { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }]);
+      setMsgs(prev => {
+        // Remove streaming message if it exists and add error message
+        const filtered = prev.filter(m => !m.streaming);
+        return [...filtered, { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }];
+      });
     } finally {
       setLoading(false);
       setMsgs(prev => {
         const updated = [...prev];
-        if (updated[updated.length - 1]) updated[updated.length - 1].streaming = false;
+        const lastMsg = updated[updated.length - 1];
+        if (lastMsg && lastMsg.streaming) {
+          updated[updated.length - 1] = { ...lastMsg, streaming: false };
+        }
         return updated;
       });
     }
