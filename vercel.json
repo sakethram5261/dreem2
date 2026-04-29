@@ -1,4 +1,5 @@
 {
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "devCommand": "vite --port 3000",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
