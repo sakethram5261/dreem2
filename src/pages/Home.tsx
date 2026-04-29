@@ -6,6 +6,7 @@ import { db } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useTheme } from "../contexts/ThemeContext";
+import { motion } from "framer-motion";
 
 const MODEL_TAG = "llama-3.3-70b";
 
@@ -1040,52 +1041,73 @@ export function Home() {
       if (reader) {
         setMsgs(prev => [...prev, { role: "assistant", content: "", streaming: true, isNew: true }]);
         
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
 
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed === "data: [DONE]") continue;
-            const jsonString = trimmed.replace(/^data:\s*/, "");
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed === "data: [DONE]") continue;
+              const jsonString = trimmed.replace(/^data:\s*/, "");
 
-            try {
-              const parsed = JSON.parse(jsonString);
-              const content = parsed.choices?.[0]?.delta?.content || "";
+              try {
+                const parsed = JSON.parse(jsonString);
+                const content = parsed.choices?.[0]?.delta?.content || "";
 
-              if (content) {
-                accumulated += content;
-                setMsgs(prev => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
-                  if (lastMsg && lastMsg.role === "assistant") {
-                    updated[updated.length - 1] = {
-                      ...lastMsg,
-                      content: accumulated
-                    };
-                  }
-                  return updated;
-                });
+                if (content) {
+                  accumulated += content;
+                  setMsgs(prev => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (lastIndex >= 0 && updated[lastIndex] && updated[lastIndex].role === "assistant") {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        content: accumulated
+                      };
+                    }
+                    return updated;
+                  });
+                }
+              } catch (parseErr) { 
+                console.warn("Parse error for line:", jsonString, parseErr);
+                continue; 
               }
-            } catch { continue; }
+            }
           }
+        } catch (readErr) {
+          console.error("Stream reading error:", readErr);
+          throw readErr; // Re-throw to be caught by outer catch
         }
 
         if (accumulated) speak(accumulated);
       }
 
       setHistory(prev => {
-        const stripIsNew = (m: Msg) => {
-          const { isNew, ...rest } = m;
-          return rest;
+        const stripIsNew = (m: Msg): Msg => {
+          const cleaned: Msg = {
+            role: m.role,
+            content: m.content
+          };
+          if (m.displayText !== undefined) cleaned.displayText = m.displayText;
+          if (m.imagePreview !== undefined) cleaned.imagePreview = m.imagePreview;
+          // Explicitly exclude streaming and isNew
+          return cleaned;
         };
+        
         const existingIdx = prev.findIndex(h => h.id === activeId);
+        const cleanedNextMsgs = nextMsgs.map(stripIsNew);
+        const assistantMsg: Msg = { role: "assistant", content: accumulated };
+        
         if (existingIdx >= 0) {
           const updated = [...prev];
-          updated[existingIdx].msgs = [...nextMsgs.map(stripIsNew), { role: "assistant", content: accumulated }];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            msgs: [...cleanedNextMsgs, assistantMsg]
+          };
           return updated;
         }
         
@@ -1093,25 +1115,25 @@ export function Home() {
         if (titleText.length > 25) titleText = titleText.substring(0, 25) + "...";
 
         return [
-          { id: activeId, title: titleText, msgs: [...nextMsgs.map(stripIsNew), { role: "assistant", content: accumulated }] },
+          { id: activeId, title: titleText, msgs: [...cleanedNextMsgs, assistantMsg] },
           ...prev
         ];
       });
 
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error sending message:", err);
       setMsgs(prev => {
-        // Remove streaming message if it exists and add error message
-        const filtered = prev.filter(m => !m.streaming);
+        // Remove any streaming assistant messages and add error message
+        const filtered = prev.filter(m => !(m.role === "assistant" && m.streaming));
         return [...filtered, { role: "assistant", content: "I'm having trouble connecting right now. Please try again in a moment." }];
       });
     } finally {
       setLoading(false);
       setMsgs(prev => {
         const updated = [...prev];
-        const lastMsg = updated[updated.length - 1];
-        if (lastMsg && lastMsg.streaming) {
-          updated[updated.length - 1] = { ...lastMsg, streaming: false };
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex]) {
+          updated[lastIndex] = { ...updated[lastIndex], streaming: false };
         }
         return updated;
       });
@@ -1148,10 +1170,14 @@ export function Home() {
   };
 
   const getMsgText = (msg: Msg): string => {
+    if (!msg) return "";
     if (msg.displayText !== undefined) return msg.displayText;
     if (typeof msg.content === "string") return msg.content;
-    const textPart = (msg.content as any[]).find(p => p.type === "text");
-    return textPart?.text || "";
+    if (Array.isArray(msg.content)) {
+      const textPart = msg.content.find(p => p && p.type === "text");
+      return textPart?.text || "";
+    }
+    return "";
   };
 
   const getGreeting = () => {
@@ -1525,7 +1551,13 @@ export function Home() {
                 </div>
               ) : (
                 msgs.map((m, i) => (
-                  <div key={i} className="gemini-row-dream">
+                  <motion.div 
+                    key={i} 
+                    className="gemini-row-dream"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  >
                     <div className={`avatar-circle-dream ${m.role}`}>
                       {m.role === "user" ? (user?.firstName?.[0] || "Y") : (
                         <div className="chat-avatar-orb" />
@@ -1606,7 +1638,7 @@ export function Home() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               )}
               <div ref={bottomRef} style={{ height: '40px' }} />
